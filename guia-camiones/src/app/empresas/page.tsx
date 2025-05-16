@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { getEmpresas } from "@/lib/api/empresaService";
 import EmpresaCard from "@/components/empresas/EmpresasCard";
+import { getEmpresas } from "@/lib/api/empresaService";
 import type { Empresa } from "@/types/empresa";
 
 const EmpresasPage = () => {
@@ -11,6 +11,7 @@ const EmpresasPage = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // Parámetros de búsqueda
   const filtro = {
     provincia: searchParams.get("provincia") || "",
     localidad: searchParams.get("localidad") || "",
@@ -22,10 +23,12 @@ const EmpresasPage = () => {
   const paginaActual = parseInt(searchParams.get("pagina") || "1", 10);
   const empresasPorPagina = 9;
 
+  // Cargar empresas
   useEffect(() => {
     getEmpresas().then(setEmpresas);
   }, []);
 
+  // Lógica de filtrado
   const filtrar = (empresa: Empresa) => {
     const matchProvincia = filtro.provincia
       ? empresa.provincia
@@ -48,6 +51,7 @@ const EmpresasPage = () => {
   };
 
   const empresasFiltradas = empresas.filter(filtrar);
+
   const empresasOrdenadas = [...empresasFiltradas].sort((a, b) => {
     if (orden === "nombre") return a.nombre.localeCompare(b.nombre);
     if (orden === "destacadas")
@@ -64,7 +68,13 @@ const EmpresasPage = () => {
 
   const actualizarQuery = (nuevo: Record<string, string>) => {
     const query = new URLSearchParams(searchParams.toString());
-    Object.entries(nuevo).forEach(([key, value]) => query.set(key, value));
+    Object.entries(nuevo).forEach(([key, value]) => {
+      if (value === "") {
+        query.delete(key);
+      } else {
+        query.set(key, value);
+      }
+    });
     router.push(`/empresas?${query.toString()}`);
   };
 
@@ -77,7 +87,7 @@ const EmpresasPage = () => {
         <input
           type="text"
           placeholder="Provincia"
-          defaultValue={filtro.provincia}
+          value={filtro.provincia}
           onChange={(e) =>
             actualizarQuery({ provincia: e.target.value, pagina: "1" })
           }
@@ -86,7 +96,7 @@ const EmpresasPage = () => {
         <input
           type="text"
           placeholder="Localidad"
-          defaultValue={filtro.localidad}
+          value={filtro.localidad}
           onChange={(e) =>
             actualizarQuery({ localidad: e.target.value, pagina: "1" })
           }
@@ -95,12 +105,13 @@ const EmpresasPage = () => {
         <input
           type="text"
           placeholder="Servicio"
-          defaultValue={filtro.servicio}
+          value={filtro.servicio}
           onChange={(e) =>
             actualizarQuery({ servicio: e.target.value, pagina: "1" })
           }
           className="border p-2 rounded w-full"
         />
+
         <div className="md:col-span-1">
           <label className="text-sm block mb-1">Ordenar por</label>
           <select
@@ -114,6 +125,7 @@ const EmpresasPage = () => {
             <option value="nombre">Nombre A-Z</option>
           </select>
         </div>
+
         <div className="md:col-span-1 flex items-end">
           <label className="flex items-center gap-2">
             <input
@@ -147,7 +159,7 @@ const EmpresasPage = () => {
           {/* Paginación */}
           {totalPaginas > 1 && (
             <div className="flex justify-center gap-2 mt-6">
-              {[...Array(totalPaginas)].map((_, i) => (
+              {Array.from({ length: totalPaginas }, (_, i) => (
                 <button
                   key={i}
                   onClick={() => actualizarQuery({ pagina: String(i + 1) })}

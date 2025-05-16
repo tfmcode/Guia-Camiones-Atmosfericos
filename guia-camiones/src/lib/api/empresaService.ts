@@ -12,10 +12,7 @@ export const getEmpresas = async (): Promise<Empresa[]> => {
       provincia: "Buenos Aires",
       localidad: "San Isidro",
       servicios: ["Desagote", "Limpieza de pozos", "Urgencias 24h"],
-      imagenes: [
-        "https://via.placeholder.com/300x200?text=Empresa+1",
-        "https://via.placeholder.com/300x200?text=Servicio+1",
-      ],
+      imagenes: ["/placeholder.png", "/placeholder.png"],
       destacado: true,
       habilitado: true,
       fechaCreacion: "2024-01-10",
@@ -31,10 +28,7 @@ export const getEmpresas = async (): Promise<Empresa[]> => {
       provincia: "Buenos Aires",
       localidad: "Lanús",
       servicios: ["Limpieza de cámaras", "Destapación"],
-      imagenes: [
-        "https://via.placeholder.com/300x200?text=Empresa+2",
-        "https://via.placeholder.com/300x200?text=Unidad+2",
-      ],
+      imagenes: ["/placeholder.png", "/placeholder.png"],
       destacado: false,
       habilitado: true,
       fechaCreacion: "2024-02-20",
