@@ -1,3 +1,4 @@
+// lib/auth/verify-jwt.ts
 import jwt from "jsonwebtoken";
 import type { Usuario } from "@/types/usuario";
 
@@ -12,7 +13,8 @@ export const verifyJwt = (
       "id" | "email" | "rol" | "nombre"
     >;
     return decoded;
-  } catch {
+  } catch (err) {
+    console.error("Error verificando JWT:", err);
     return null;
   }
 };

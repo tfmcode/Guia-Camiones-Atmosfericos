@@ -1,11 +1,11 @@
+// src/app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import { signJwt } from "@/lib/auth/sign-jwt";
-import { getUsuarioByEmailYPassword } from "@/lib/db";
+import { getUsuarioByEmailYPassword } from "@/lib/api/getUsuarioByEmailYPassword";
 
 export async function POST(request: Request) {
   const { email, password } = await request.json();
 
-  // Reemplazá por consulta real a tu base
   const user = await getUsuarioByEmailYPassword(email, password);
 
   if (!user) {
@@ -22,7 +22,18 @@ export async function POST(request: Request) {
     nombre: user.nombre,
   });
 
-  const response = NextResponse.json({ success: true });
+  const response = NextResponse.json(
+    {
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        rol: user.rol,
+        nombre: user.nombre,
+      },
+    },
+    { status: 200 }
+  );
 
   response.cookies.set("token", token, {
     httpOnly: true,

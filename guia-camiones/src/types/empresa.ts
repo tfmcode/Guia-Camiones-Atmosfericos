@@ -1,6 +1,6 @@
 export interface Empresa {
   id: number;
-  slug: string; // ← esta propiedad es clave para rutas amigables como /empresas/destapaciones-zona-sur
+  slug: string;
   nombre: string;
   email?: string;
   telefono: string;
@@ -15,4 +15,7 @@ export interface Empresa {
   usuarioId: number;
 }
 
-export type EmpresaInput = Omit<Empresa, "id" | "fechaCreacion" | "slug">;
+export type EmpresaInput = Omit<
+  Empresa,
+  "id" | "fechaCreacion" | "slug" | "usuarioId"
+>;

@@ -1,20 +1,17 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-
-import { Usuario } from "@/types/usuario";
+import type { Usuario } from "@/types/usuario";
 
 type AuthContextType = {
   user: Usuario | null;
   loading: boolean;
-  login: (userData: Usuario) => void;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  login: () => {},
   logout: () => {},
 });
 
@@ -23,25 +20,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-    setLoading(false);
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) throw new Error("No autorizado");
+
+        const data = await res.json();
+        setUser(data);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
   }, []);
 
-  const login = (userData: Usuario) => {
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-  };
-
-  const logout = () => {
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
-    localStorage.removeItem("user");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );

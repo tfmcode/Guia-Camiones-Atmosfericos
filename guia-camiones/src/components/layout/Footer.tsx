@@ -4,11 +4,11 @@ const Footer = () => {
       <div className="mx-auto max-w-screen-xl space-y-8 px-4 py-16 sm:px-6 lg:space-y-16 lg:px-8">
         <div className="sm:flex sm:items-center sm:justify-between">
           <div className="text-cyan-700 font-bold text-lg flex items-center gap-2">
-            🚛 Guía Camiones
+            🚛 Camiones Atmosfericos
           </div>
 
           <ul className="mt-8 flex justify-start gap-6 sm:mt-0 sm:justify-end">
-            {["Facebook", "Instagram", "Twitter", "GitHub", "Dribbble"].map(
+            {["Facebook", "Instagram", "Twitter"].map(
               (platform) => (
                 <li key={platform}>
                   <a
@@ -39,10 +39,7 @@ const Footer = () => {
               title: "Servicios",
               items: ["SEO", "Consultoría", "Soporte", "Promociones", "Turnos"],
             },
-            {
-              title: "Empresa",
-              items: ["Quiénes somos", "Equipo", "Clientes"],
-            },
+      
             {
               title: "Ayuda",
               items: ["Contacto", "Preguntas frecuentes", "Chat en vivo"],

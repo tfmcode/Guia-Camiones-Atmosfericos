@@ -1,8 +1,8 @@
+// app/layout.tsx (SERVER COMPONENT)
 import "@/styles/globals.css";
 import type { Metadata } from "next";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { AuthProvider } from "@/context/AuthContext";
+import LayoutContent from "@/components/layout/LayoutContent";
 
 export const metadata: Metadata = {
   title: "Guía de Camiones Atmosféricos",
@@ -19,9 +19,7 @@ export default function RootLayout({
     <html lang="es">
       <body className="bg-white text-gray-900">
         <AuthProvider>
-          <Navbar />
-          {children}
-          <Footer />
+          <LayoutContent>{children}</LayoutContent>
         </AuthProvider>
       </body>
     </html>

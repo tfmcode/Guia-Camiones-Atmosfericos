@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const preguntas = [
   {
@@ -28,31 +29,40 @@ const Faq = () => {
   };
 
   return (
-    <section className="bg-indigo-600 text-white py-16 px-4 sm:px-6 lg:px-8">
+    <section className="bg-zinc-900 text-white py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-extrabold mb-10">
-          Preguntas Frecuentes (FAQ)
+        <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-12">
+          Preguntas Frecuentes
         </h2>
 
-        <div className="space-y-4">
-          {preguntas.map((item, index) => (
-            <div key={index} className="border-b border-indigo-400 pb-4">
-              <button
-                className="flex justify-between items-center w-full text-left text-lg font-medium focus:outline-none"
-                onClick={() => toggle(index)}
+        <div className="space-y-6">
+          {preguntas.map((item, index) => {
+            const isOpen = openIndex === index;
+            return (
+              <div
+                key={index}
+                className="bg-zinc-800 border border-zinc-700 rounded-lg transition-shadow hover:shadow-md"
               >
-                <span>{item.pregunta}</span>
-                <span className="text-xl">
-                  {openIndex === index ? "−" : "+"}
-                </span>
-              </button>
-              {openIndex === index && (
-                <p className="mt-3 text-indigo-100 text-base">
-                  {item.respuesta}
-                </p>
-              )}
-            </div>
-          ))}
+                <button
+                  onClick={() => toggle(index)}
+                  className="w-full flex justify-between items-center p-5 text-left text-lg font-semibold text-white focus:outline-none"
+                >
+                  <span>{item.pregunta}</span>
+                  {isOpen ? (
+                    <ChevronUp className="w-5 h-5 text-rose-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-rose-500" />
+                  )}
+                </button>
+
+                {isOpen && (
+                  <div className="px-5 pb-5 text-gray-300 text-base transition-all duration-300">
+                    {item.respuesta}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

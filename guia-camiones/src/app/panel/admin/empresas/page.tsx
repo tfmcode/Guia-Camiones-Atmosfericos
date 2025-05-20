@@ -1,128 +1,256 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Empresa } from "@/types/empresa";
+import DataTable from "@/components/ui/DataTable";
+import Modal from "@/components/ui/Modal";
+import FormField from "@/components/ui/FormField";
+import type { Empresa, EmpresaInput } from "@/types/empresa";
+import axios from "axios";
 
-export default function AdminEmpresasPage() {
+export default function EmpresasAdminPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [empresaIdEditar, setEmpresaIdEditar] = useState<number | null>(null);
+
+  const [form, setForm] = useState<EmpresaInput>({
+    nombre: "",
+    email: "",
+    telefono: "",
+    direccion: "",
+    provincia: "",
+    localidad: "",
+    servicios: [],
+    imagenes: [],
+    destacado: false,
+    habilitado: true,
+  });
+
+  const [provincias, setProvincias] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+  const [localidades, setLocalidades] = useState<
+    { id: string; nombre: string }[]
+  >([]);
 
   useEffect(() => {
-    // Simulación de fetch a backend
-    setEmpresas([
-      {
-        id: 1,
-        slug: "camion-norte",
-        nombre: "Camión Norte",
-        email: "norte@email.com",
-        telefono: "1111-1111",
-        direccion: "Calle 123",
-        provincia: "Buenos Aires",
-        localidad: "San Isidro",
-        servicios: ["Desagote", "Pozos"],
-        imagenes: [],
-        destacado: true,
-        habilitado: true,
-        fechaCreacion: "2024-01-01",
-        usuarioId: 1,
-      },
-      {
-        id: 2,
-        slug: "pozos-sur",
-        nombre: "Pozos del Sur",
-        email: "",
-        telefono: "2222-2222",
-        direccion: "Avenida 456",
-        provincia: "Santa Fe",
-        localidad: "Rosario",
-        servicios: ["Limpieza"],
-        imagenes: [],
-        destacado: false,
-        habilitado: false,
-        fechaCreacion: "2024-02-10",
-        usuarioId: 2,
-      },
-    ]);
+    fetchEmpresas();
+    fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre")
+      .then((res) => res.json())
+      .then((data) => setProvincias(data.provincias));
   }, []);
 
-  const toggleHabilitado = (id: number) => {
-    setEmpresas((empresas) =>
-      empresas.map((e) =>
-        e.id === id ? { ...e, habilitado: !e.habilitado } : e
+  useEffect(() => {
+    if (form.provincia) {
+      fetch(
+        `https://apis.datos.gob.ar/georef/api/municipios?provincia=${form.provincia}&campos=id,nombre&max=1000`
       )
-    );
+        .then((res) => res.json())
+        .then((data) => setLocalidades(data.municipios));
+    }
+  }, [form.provincia]);
+
+  const fetchEmpresas = async () => {
+    const res = await fetch("/api/empresas/admin");
+    const data = await res.json();
+    setEmpresas(data);
   };
 
-  const toggleDestacado = (id: number) => {
-    setEmpresas((empresas) =>
-      empresas.map((e) => (e.id === id ? { ...e, destacado: !e.destacado } : e))
-    );
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const eliminarEmpresa = (id: number) => {
-    if (confirm("¿Estás seguro de eliminar esta empresa?")) {
-      setEmpresas((empresas) => empresas.filter((e) => e.id !== id));
+  const abrirNuevo = () => {
+    setForm({
+      nombre: "",
+      email: "",
+      telefono: "",
+      direccion: "",
+      provincia: "",
+      localidad: "",
+      servicios: [],
+      imagenes: [],
+      destacado: false,
+      habilitado: true,
+    });
+    setEmpresaIdEditar(null);
+    setModoEdicion(false);
+    setModalAbierto(true);
+  };
+
+  const abrirEditar = (empresa: Empresa) => {
+    setForm({
+      nombre: empresa.nombre,
+      email: empresa.email || "",
+      telefono: empresa.telefono,
+      direccion: empresa.direccion,
+      provincia: empresa.provincia || "",
+      localidad: empresa.localidad || "",
+      servicios: empresa.servicios,
+      imagenes: empresa.imagenes,
+      destacado: empresa.destacado,
+      habilitado: empresa.habilitado,
+    });
+    setEmpresaIdEditar(empresa.id);
+    setModoEdicion(true);
+    setModalAbierto(true);
+  };
+
+  const guardar = async () => {
+    if (modoEdicion && empresaIdEditar !== null) {
+      await axios.put(`/api/empresas/admin/${empresaIdEditar}`, form);
+    } else {
+      await axios.post("/api/empresas/admin", form);
+    }
+    setModalAbierto(false);
+    fetchEmpresas();
+  };
+
+  const eliminar = async (empresa: Empresa) => {
+    if (confirm(`¿Eliminar a ${empresa.nombre}?`)) {
+      await axios.delete(`/api/empresas/admin/${empresa.id}`);
+      fetchEmpresas();
     }
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Empresas Registradas</h1>
+    <div className="p-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Empresas</h1>
+        <button
+          onClick={abrirNuevo}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Nueva Empresa
+        </button>
+      </div>
 
-      {empresas.length === 0 ? (
-        <p className="text-gray-500">No hay empresas registradas.</p>
-      ) : (
-        <table className="w-full border text-sm">
-          <thead className="bg-gray-100 text-left">
-            <tr>
-              <th className="p-2">Nombre</th>
-              <th className="p-2">Provincia</th>
-              <th className="p-2">Habilitado</th>
-              <th className="p-2">Destacado</th>
-              <th className="p-2 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {empresas.map((e) => (
-              <tr key={e.id} className="border-t">
-                <td className="p-2">{e.nombre}</td>
-                <td className="p-2">{e.provincia}</td>
-                <td className="p-2">
-                  <button
-                    onClick={() => toggleHabilitado(e.id)}
-                    className={`text-xs px-2 py-1 rounded ${
-                      e.habilitado
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {e.habilitado ? "Sí" : "No"}
-                  </button>
-                </td>
-                <td className="p-2">
-                  <button
-                    onClick={() => toggleDestacado(e.id)}
-                    className={`text-xs px-2 py-1 rounded ${
-                      e.destacado
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {e.destacado ? "★" : "☆"}
-                  </button>
-                </td>
-                <td className="p-2 text-right">
-                  <button
-                    onClick={() => eliminarEmpresa(e.id)}
-                    className="text-red-600 text-sm hover:underline"
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <DataTable
+        data={empresas}
+        columns={[
+          { key: "nombre", label: "Nombre" },
+          { key: "provincia", label: "Provincia" },
+          { key: "localidad", label: "Localidad" },
+          { key: "telefono", label: "Teléfono" },
+        ]}
+        onEdit={abrirEditar}
+        onDelete={eliminar}
+      />
+
+      <Modal
+        isOpen={modalAbierto}
+        onClose={() => setModalAbierto(false)}
+        title={modoEdicion ? "Editar Empresa" : "Nueva Empresa"}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            guardar();
+          }}
+          className="space-y-4"
+        >
+          <FormField
+            label="Nombre"
+            name="nombre"
+            value={form.nombre}
+            onChange={handleChange}
+          />
+          <FormField
+            label="Email"
+            name="email"
+            value={form.email || ""}
+            onChange={handleChange}
+            type="email"
+          />
+          <FormField
+            label="Teléfono"
+            name="telefono"
+            value={form.telefono}
+            onChange={handleChange}
+          />
+          <FormField
+            label="Dirección"
+            name="direccion"
+            value={form.direccion}
+            onChange={handleChange}
+          />
+
+          {/* Select de provincia */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Provincia
+            </label>
+            <select
+              name="provincia"
+              value={form.provincia}
+              onChange={(e) =>
+                setForm({ ...form, provincia: e.target.value, localidad: "" })
+              }
+              className="block w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value="">Seleccione una provincia</option>
+              {provincias.map((prov) => (
+                <option key={prov.id} value={prov.nombre}>
+                  {prov.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Select de localidad */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Localidad
+            </label>
+            <select
+              name="localidad"
+              value={form.localidad}
+              onChange={(e) => setForm({ ...form, localidad: e.target.value })}
+              className="block w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value="">Seleccione una localidad</option>
+              {localidades.map((loc) => (
+                <option key={loc.id} value={loc.nombre}>
+                  {loc.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.destacado}
+                onChange={(e) =>
+                  setForm({ ...form, destacado: e.target.checked })
+                }
+              />
+              Destacada
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.habilitado}
+                onChange={(e) =>
+                  setForm({ ...form, habilitado: e.target.checked })
+                }
+              />
+              Habilitada
+            </label>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Guardar
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
