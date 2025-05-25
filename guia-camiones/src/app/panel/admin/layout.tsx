@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import LogoutButton from "@/components/layout/LogoutButton";
 import Link from "next/link";
 
@@ -11,18 +11,26 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { usuario, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && (!user || user.rol !== "ADMIN")) {
-      router.push("/unauthorized");
+    if (!loading) {
+      if (!usuario) {
+        router.push("/login");
+      } else if (usuario.rol !== "ADMIN") {
+        router.push("/unauthorized");
+      }
     }
-  }, [user, loading, router]);
+  }, [usuario, loading, router]);
 
-  if (loading || !user) {
-    return <div className="p-6 text-center text-zinc-600">Cargando panel de administrador...</div>;
+  if (loading || !usuario) {
+    return (
+      <div className="p-6 text-center text-zinc-600">
+        Cargando panel de administrador...
+      </div>
+    );
   }
 
   const navItems = [
@@ -33,18 +41,16 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen flex bg-zinc-50">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-zinc-200 shadow-sm px-6 py-6 flex flex-col">
         <div className="mb-8">
-          <h2 className="text-xl font-extrabold text-rose-600">
-            Admin Panel
-          </h2>
-          <p className="text-sm text-zinc-500">{user.nombre}</p>
+          <h2 className="text-xl font-extrabold text-rose-600">Admin Panel</h2>
+          <p className="text-sm text-zinc-500">{usuario.nombre}</p>
         </div>
 
         <nav className="flex flex-col gap-1 text-sm text-zinc-700 font-medium">
           {navItems.map(({ label, href }) => {
-            const isActive = pathname === href || pathname.startsWith(href + "/");
+            const isActive =
+              pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
@@ -56,7 +62,9 @@ export default function AdminLayout({
                 }`}
               >
                 <span>{label}</span>
-                {isActive && <span className="w-2 h-2 rounded-full bg-rose-600" />}
+                {isActive && (
+                  <span className="w-2 h-2 rounded-full bg-rose-600" />
+                )}
               </Link>
             );
           })}
@@ -67,10 +75,7 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-grow px-6 py-8 overflow-x-hidden">
-        {children}
-      </main>
+      <main className="flex-grow px-6 py-8 overflow-x-hidden">{children}</main>
     </div>
   );
 }

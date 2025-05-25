@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 export default function RegistroEmpresa() {
   const [form, setForm] = useState({
@@ -9,17 +10,47 @@ export default function RegistroEmpresa() {
     telefono: "",
     provincia: "",
     localidad: "",
+    direccion: "",
     password: "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [provincias, setProvincias] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+  const [localidades, setLocalidades] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+
+  useEffect(() => {
+    fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre")
+      .then((res) => res.json())
+      .then((data) => setProvincias(data.provincias));
+  }, []);
+
+  useEffect(() => {
+    if (form.provincia) {
+      fetch(
+        `https://apis.datos.gob.ar/georef/api/municipios?provincia=${form.provincia}&campos=id,nombre&max=1000`
+      )
+        .then((res) => res.json())
+        .then((data) => setLocalidades(data.municipios));
+    }
+  }, [form.provincia]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Formulario enviado (sin funcionalidad):", form);
-    // Aquí iría el fetch/post a la API
+    try {
+      await axios.post("/api/registro", form);
+      alert("Empresa registrada exitosamente");
+    } catch {
+      alert("Error al registrar la empresa");
+    }
   };
 
   return (
@@ -72,24 +103,47 @@ export default function RegistroEmpresa() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Provincia</label>
-            <input
-              type="text"
+            <select
               name="provincia"
               value={form.provincia}
               onChange={handleChange}
               className="w-full border rounded px-3 py-2"
-            />
+            >
+              <option value="">Seleccioná una provincia</option>
+              {provincias.map((prov) => (
+                <option key={prov.id} value={prov.nombre}>
+                  {prov.nombre}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Localidad</label>
-            <input
-              type="text"
+            <select
               name="localidad"
               value={form.localidad}
               onChange={handleChange}
               className="w-full border rounded px-3 py-2"
-            />
+            >
+              <option value="">Seleccioná una localidad</option>
+              {localidades.map((loc) => (
+                <option key={loc.id} value={loc.nombre}>
+                  {loc.nombre}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+         <div>
+          <label className="block text-sm font-medium mb-1">Direccion</label>
+          <input
+            type="text"
+            name="direccion"
+            value={form.direccion}
+            onChange={handleChange}
+            required
+            className="w-full border rounded px-3 py-2"
+          />
         </div>
 
         <div>

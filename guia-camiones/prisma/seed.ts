@@ -4,25 +4,25 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  const password = await bcrypt.hash("admin123", 10);
 
   const admin = await prisma.usuario.upsert({
     where: { email: "admin@email.com" },
     update: {},
     create: {
-      nombre: "Admin",
+      nombre: "Administrador",
       email: "admin@email.com",
-      password: hashedPassword,
+      password,
       rol: "ADMIN",
     },
   });
 
-  console.log("✅ Usuario ADMIN creado:", admin.email);
+  console.log("Usuario administrador creado:", admin);
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Error en el seed:", e);
+    console.error(e);
     process.exit(1);
   })
   .finally(() => {

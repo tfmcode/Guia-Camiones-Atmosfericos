@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyJwt } from "@/lib/auth/verify-jwt";
-import { usuarioUpdateSchema } from "@/schemas/usuarioSchemas";
-import bcrypt from "bcrypt";
-import { z } from "zod";
+import { empresaSchema } from "@/schemas/empresaSchema";
 
+// PUT: Actualiza empresa
 export async function PUT(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
-
   if (!user || user.rol !== "ADMIN") {
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
@@ -19,7 +17,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const body = await req.json();
-  const parse = usuarioUpdateSchema.safeParse(body);
+  const parse = empresaSchema.safeParse(body);
 
   if (!parse.success) {
     return NextResponse.json(
@@ -28,37 +26,30 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  const { password, ...rest } = parse.data;
-  const dataToUpdate: Omit<z.infer<typeof usuarioUpdateSchema>, "password"> & {
-    password?: string;
-  } = { ...rest };
+  const slug = parse.data.nombre
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-]/g, "")
+    .replace(/\-+/g, "-")
+    .replace(/^\-+|\-+$/g, "");
 
-  if (password) {
-    const hashed = await bcrypt.hash(password, 10);
-    dataToUpdate.password = hashed;
-  }
-
-  const actualizado = await prisma.usuario.update({
+  const actualizada = await prisma.empresa.update({
     where: { id: Number(id) },
-    data: dataToUpdate,
+    data: {
+      ...parse.data,
+      slug,
+    },
   });
 
-  // Eliminamos manualmente el password en lugar de usar destructuring
-  const sanitizado = {
-    id: actualizado.id,
-    nombre: actualizado.nombre,
-    email: actualizado.email,
-    rol: actualizado.rol,
-    creadoEn: actualizado.creadoEn,
-  };
-
-  return NextResponse.json(sanitizado);
+  return NextResponse.json(actualizada);
 }
 
+// DELETE: Elimina empresa
 export async function DELETE(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
-
   if (!user || user.rol !== "ADMIN") {
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
@@ -68,9 +59,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
 
-  await prisma.usuario.delete({
+  await prisma.empresa.delete({
     where: { id: Number(id) },
   });
 
-  return NextResponse.json({ message: "Usuario eliminado" });
+  return NextResponse.json({ message: "Empresa eliminada" });
 }

@@ -1,45 +1,20 @@
-import type { Empresa } from "@/types/empresa";
+import { Empresa } from "@/types/empresa";
 
-export const getEmpresas = async (): Promise<Empresa[]> => {
-  return [
-    {
-      id: 1,
-      slug: "camion-atmosferico-norte",
-      nombre: "Camión Atmosférico Norte",
-      email: "contacto@norte.com",
-      telefono: "011-1234-5678",
-      direccion: "Av. Siempre Viva 123",
-      provincia: "Buenos Aires",
-      localidad: "San Isidro",
-      servicios: ["Desagote", "Limpieza de pozos", "Urgencias 24h"],
-      imagenes: ["/placeholder.png", "/placeholder.png"],
-      destacado: true,
-      habilitado: true,
-      fechaCreacion: "2024-01-10",
-      usuarioId: 1,
-    },
-    {
-      id: 2,
-      slug: "desagotes-urgentes-zona-sur",
-      nombre: "Desagotes Urgentes Zona Sur",
-      email: "",
-      telefono: "011-9999-8888",
-      direccion: "Calle Falsa 456",
-      provincia: "Buenos Aires",
-      localidad: "Lanús",
-      servicios: ["Limpieza de cámaras", "Destapación"],
-      imagenes: ["/placeholder.png", "/placeholder.png"],
-      destacado: false,
-      habilitado: true,
-      fechaCreacion: "2024-02-20",
-      usuarioId: 2,
-    },
-  ];
-};
+// ⚠️ Pone tu dominio local o de producción
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-export const getEmpresaBySlug = async (
-  slug: string
-): Promise<Empresa | null> => {
-  const empresas = await getEmpresas();
-  return empresas.find((e) => e.slug === slug) || null;
-};
+export async function getEmpresas(): Promise<Empresa[]> {
+  const res = await fetch(`${BASE_URL}/api/empresa/public`);
+  if (!res.ok) {
+    throw new Error("Error al cargar empresas");
+  }
+  return res.json();
+}
+
+export async function getEmpresaBySlug(slug: string): Promise<Empresa | null> {
+  const res = await fetch(`${BASE_URL}/api/empresa/public/${slug}`);
+  if (!res.ok) {
+    throw new Error("Error al cargar empresa");
+  }
+  return res.json();
+}

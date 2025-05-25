@@ -1,52 +1,75 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import type { Usuario } from "@/types/usuario";
+import { createContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type Usuario = {
+  id: number;
+  email: string;
+  nombre: string;
+  rol: "ADMIN" | "EMPRESA" | "USUARIO";
+};
 
 type AuthContextType = {
-  user: Usuario | null;
+  usuario: Usuario | null;
   loading: boolean;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
-  user: null,
+  usuario: null,
   loading: true,
   logout: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<Usuario | null>(null);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUsuario = async () => {
       try {
-        const res = await fetch("/api/auth/me");
-        if (!res.ok) throw new Error("No autorizado");
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+        });
 
-        const data = await res.json();
-        setUser(data);
+        if (res.ok) {
+          const data = await res.json();
+          setUsuario(data);
+        } else {
+          setUsuario(null);
+        }
       } catch {
-        setUser(null);
+        setUsuario(null);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUser();
+    fetchUsuario();
   }, []);
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (e) {
+      console.error("Error al cerrar sesión:", e);
+    }
+
+    setUsuario(null);
+    router.push("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ usuario, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export { AuthContext };

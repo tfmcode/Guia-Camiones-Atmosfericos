@@ -1,7 +1,7 @@
 export interface Empresa {
   id: number;
-  slug: string;
   nombre: string;
+  slug: string; 
   email?: string;
   telefono: string;
   direccion: string;
@@ -11,11 +11,7 @@ export interface Empresa {
   imagenes: string[];
   destacado: boolean;
   habilitado: boolean;
-  fechaCreacion: string;
-  usuarioId: number;
+  creadoEn: string;
 }
 
-export type EmpresaInput = Omit<
-  Empresa,
-  "id" | "fechaCreacion" | "slug" | "usuarioId"
->;
+export type EmpresaInput = Omit<Empresa, "id" | "creadoEn">;

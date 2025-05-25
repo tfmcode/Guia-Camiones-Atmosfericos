@@ -168,7 +168,6 @@ const EmpresasPage = () => {
             className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
           >
             <option value="destacadas">Destacadas primero</option>
-            <option value="nombre">Nombre A-Z</option>
           </select>
         </div>
 

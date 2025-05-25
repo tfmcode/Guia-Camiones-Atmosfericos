@@ -11,11 +11,14 @@ export async function generateStaticParams() {
 }
 
 export default async function EmpresaDetail({
-  params,
+  params: paramsPromise,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const empresa: Empresa | null = await getEmpresaBySlug(params.slug);
+  // 👇 Así resolvés la promesa de params (Next.js 15+)
+  const { slug } = await paramsPromise;
+
+  const empresa: Empresa | null = await getEmpresaBySlug(slug);
   if (!empresa) return notFound();
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import DataTable from "@/components/ui/DataTable";
 import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
@@ -51,12 +51,14 @@ export default function EmpresasAdminPage() {
   }, [form.provincia]);
 
   const fetchEmpresas = async () => {
-    const res = await fetch("/api/empresas/admin");
+    const res = await fetch("/api/empresa/admin");
     const data = await res.json();
     setEmpresas(data);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -98,9 +100,9 @@ export default function EmpresasAdminPage() {
 
   const guardar = async () => {
     if (modoEdicion && empresaIdEditar !== null) {
-      await axios.put(`/api/empresas/admin/${empresaIdEditar}`, form);
+      await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
     } else {
-      await axios.post("/api/empresas/admin", form);
+      await axios.post("/api/empresa/admin", form);
     }
     setModalAbierto(false);
     fetchEmpresas();
@@ -108,7 +110,7 @@ export default function EmpresasAdminPage() {
 
   const eliminar = async (empresa: Empresa) => {
     if (confirm(`¿Eliminar a ${empresa.nombre}?`)) {
-      await axios.delete(`/api/empresas/admin/${empresa.id}`);
+      await axios.delete(`/api/empresa/admin/${empresa.id}`);
       fetchEmpresas();
     }
   };

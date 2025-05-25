@@ -18,19 +18,19 @@ const Login = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include", // ← AGREGÁ ESTO
       });
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Error al iniciar sesión");
+        setError(data.message || "Error al iniciar sesión");
         return;
       }
 
-      const userData = await res.json();
-      const rol = userData?.user?.rol;
+      const { usuario } = await res.json();
 
-      if (rol === "ADMIN") router.push("/panel/admin");
-      else if (rol === "EMPRESA") router.push("/panel/empresa");
+      if (usuario?.rol === "ADMIN") router.push("/panel/admin");
+      else if (usuario?.rol === "EMPRESA") router.push("/panel/empresa");
       else router.push("/");
     } catch {
       setError("Error inesperado. Intentá de nuevo.");

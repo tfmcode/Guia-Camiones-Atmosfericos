@@ -25,7 +25,7 @@ CREATE TABLE "Empresa" (
     "localidad" TEXT,
     "servicios" TEXT[],
     "imagenes" TEXT[],
-    "destacado" BOOLEAN NOT NULL,
+    "destacado" BOOLEAN NOT NULL DEFAULT false,
     "habilitado" BOOLEAN NOT NULL DEFAULT true,
     "fechaCreacion" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "usuarioId" INTEGER NOT NULL,

@@ -1,18 +1,19 @@
-import { NextResponse } from "next/server";
+// app/api/auth/me/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth/verify-jwt";
 
-export async function GET(req: Request) {
-  const token = req.headers.get("cookie")?.split("token=")[1]?.split(";")[0];
+export async function GET(req: NextRequest) {
+  const token = req.cookies.get("token")?.value;
 
   if (!token) {
-    return NextResponse.json({ error: "No token" }, { status: 401 });
+    return NextResponse.json({ message: "No token" }, { status: 401 });
   }
 
-  const user = verifyJwt(token);
-
-  if (!user) {
-    return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+  try {
+    const payload = verifyJwt(token);
+    return NextResponse.json(payload);
+  } catch (error) {
+    console.error("Token inválido:", error);
+    return NextResponse.json({ message: "Token inválido" }, { status: 401 });
   }
-
-  return NextResponse.json(user);
 }

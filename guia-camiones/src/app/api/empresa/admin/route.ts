@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcrypt";
 import { verifyJwt } from "@/lib/auth/verify-jwt";
-import { usuarioSchema } from "@/schemas/usuarioSchemas";
+import { empresaSchema } from "@/schemas/empresaSchema";
 
+// GET: Lista todas las empresas (solo ADMIN)
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -12,19 +12,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
 
-  const usuarios = await prisma.usuario.findMany({
-    select: {
-      id: true,
-      nombre: true,
-      email: true,
-      rol: true,
-      creadoEn: true,
-    },
-  });
-
-  return NextResponse.json(usuarios);
+  const empresas = await prisma.empresa.findMany();
+  return NextResponse.json(empresas);
 }
 
+// POST: Crea nueva empresa (slug auto, usuario opcional)
 export async function POST(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -34,8 +26,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
+  const parse = empresaSchema.safeParse(body);
 
-  const parse = usuarioSchema.safeParse(body);
   if (!parse.success) {
     return NextResponse.json(
       { errors: parse.error.flatten().fieldErrors },
@@ -43,23 +35,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { email, nombre, password, rol } = parse.data;
+  const slug = parse.data.nombre
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-]/g, "")
+    .replace(/\-+/g, "-")
+    .replace(/^\-+|\-+$/g, "");
 
-  const existe = await prisma.usuario.findUnique({ where: { email } });
-  if (existe) {
-    return NextResponse.json(
-      { message: "Email ya registrado" },
-      { status: 400 }
-    );
-  }
-
-  const hashed = await bcrypt.hash(password, 10);
-
-  const nuevo = await prisma.usuario.create({
-    data: { nombre, email, password: hashed, rol },
+  const nueva = await prisma.empresa.create({
+    data: {
+      ...parse.data,
+      slug,
+    },
   });
 
-  delete nuevo.password;
-
-  return NextResponse.json(nuevo, { status: 201 });
+  return NextResponse.json(nueva, { status: 201 });
 }
