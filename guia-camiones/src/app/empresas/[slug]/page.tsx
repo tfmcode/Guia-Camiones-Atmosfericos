@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Empresa } from "@/types/empresa";
-import { getEmpresaBySlug, getEmpresas } from "@/lib/api/empresaService";
+import { prisma } from "@/lib/prisma";
+import { getEmpresaBySlug } from "@/lib/api/empresaService";
 
 export async function generateStaticParams() {
-  const empresas = await getEmpresas();
-  return empresas.map((empresa) => ({
+  const empresas: { slug: string }[] = await prisma.empresa.findMany({
+    select: { slug: true },
+  });
+  return empresas.map((empresa: { slug: string }) => ({
     slug: empresa.slug,
   }));
 }
@@ -15,7 +18,6 @@ export default async function EmpresaDetail({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  // 👇 Así resolvés la promesa de params (Next.js 15+)
   const { slug } = await paramsPromise;
 
   const empresa: Empresa | null = await getEmpresaBySlug(slug);
