@@ -15,6 +15,7 @@ export default function EmpresasAdminPage() {
 
   const [form, setForm] = useState<EmpresaInput>({
     nombre: "",
+    slug: "",
     email: "",
     telefono: "",
     direccion: "",
@@ -65,6 +66,7 @@ export default function EmpresasAdminPage() {
   const abrirNuevo = () => {
     setForm({
       nombre: "",
+      slug: "",
       email: "",
       telefono: "",
       direccion: "",
@@ -83,6 +85,7 @@ export default function EmpresasAdminPage() {
   const abrirEditar = (empresa: Empresa) => {
     setForm({
       nombre: empresa.nombre,
+      slug: empresa.slug,
       email: empresa.email || "",
       telefono: empresa.telefono,
       direccion: empresa.direccion,
