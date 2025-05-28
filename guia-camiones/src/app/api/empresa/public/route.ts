@@ -13,6 +13,8 @@ export async function GET() {
       imagenes: true,
       destacado: true,
       slug: true,
+      telefono: true,
+      email: true,
     },
   });
 

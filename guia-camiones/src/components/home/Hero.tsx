@@ -1,18 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 const Hero = () => {
   return (
-    <section
-      className="relative bg-cover bg-center bg-no-repeat min-h-[90vh] flex items-center justify-center text-white"
-      style={{
-        backgroundImage: "url('/placeholder.jpg')", // ✅ ESTA ES LA RUTA CORRECTA
-      }}
-    >
-      <div className="absolute inset-0 bg-black bg-opacity-70" />
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center text-white overflow-hidden">
+      {/* Imagen de fondo usando Next/Image */}
+      <Image
+        src="/img/portada.png"
+        alt="Camión atmosférico"
+        layout="fill"
+        objectFit="cover"
+        objectPosition="center"
+        className="absolute inset-0 z-0"
+        priority
+      />
 
-      <div className="relative z-10 text-center px-6 max-w-3xl">
+      {/* Capa oscura sobre la imagen */}
+      <div className="absolute inset-0 bg-black/70 z-10" />
+
+      {/* Contenido encima */}
+      <div className="relative z-20 text-center px-6 max-w-3xl">
         <h1 className="text-4xl md:text-5xl font-extrabold leading-tight tracking-tight mb-6 drop-shadow-lg">
           Guía Nacional de Camiones Atmosféricos
         </h1>

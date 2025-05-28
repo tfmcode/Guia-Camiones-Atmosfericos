@@ -7,11 +7,12 @@ export interface Empresa {
   direccion: string;
   provincia?: string;
   localidad?: string;
-  servicios: string[];
-  imagenes: string[];
   destacado: boolean;
   habilitado: boolean;
   creadoEn: string;
+  web?: string;
+  imagenes: string[];
+  servicios: string[];
 }
 
 export type EmpresaInput = Omit<Empresa, "id" | "creadoEn">;
