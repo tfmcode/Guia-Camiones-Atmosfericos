@@ -1,10 +1,8 @@
-// src/app/api/empresa/public/[slug]/route.ts
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  _: Request,
+  req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   const { slug } = params;
