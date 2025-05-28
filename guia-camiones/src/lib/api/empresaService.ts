@@ -1,7 +1,7 @@
 import { Empresa } from "@/types/empresa";
 
 // ⚠️ Pone tu dominio local o de producción
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://guia-atmosfericos.com";
 
 export async function getEmpresas(): Promise<Empresa[]> {
   const res = await fetch(`${BASE_URL}/api/empresa/public`);
