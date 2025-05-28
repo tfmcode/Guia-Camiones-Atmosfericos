@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 const Login = () => {
-  const router = useRouter();
-  const [email, setEmail] = useState("admin@email.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +16,7 @@ const Login = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-        credentials: "include", // ← AGREGÁ ESTO
+        credentials: "include", // ← Asegura que guarde las cookies
       });
 
       if (!res.ok) {
@@ -29,9 +27,14 @@ const Login = () => {
 
       const { usuario } = await res.json();
 
-      if (usuario?.rol === "ADMIN") router.push("/panel/admin");
-      else if (usuario?.rol === "EMPRESA") router.push("/panel/empresa");
-      else router.push("/");
+      // 🔥 Reemplazamos router.push por una recarga que asegura que el contexto se actualice
+      if (usuario?.rol === "ADMIN") {
+        window.location.href = "/panel/admin";
+      } else if (usuario?.rol === "EMPRESA") {
+        window.location.href = "/panel/empresa";
+      } else {
+        window.location.href = "/";
+      }
     } catch {
       setError("Error inesperado. Intentá de nuevo.");
     }

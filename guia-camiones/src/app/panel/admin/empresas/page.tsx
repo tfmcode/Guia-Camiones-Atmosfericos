@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
 import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
+import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
 
 export default function EmpresasAdminPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -25,6 +26,8 @@ export default function EmpresasAdminPage() {
     imagenes: [],
     destacado: false,
     habilitado: true,
+    web: "",
+    corrienteServicios: "",
   });
 
   const [provincias, setProvincias] = useState<
@@ -76,6 +79,8 @@ export default function EmpresasAdminPage() {
       imagenes: [],
       destacado: false,
       habilitado: true,
+      web: "",
+      corrienteServicios: "",
     });
     setEmpresaIdEditar(null);
     setModoEdicion(false);
@@ -95,6 +100,8 @@ export default function EmpresasAdminPage() {
       imagenes: empresa.imagenes,
       destacado: empresa.destacado,
       habilitado: empresa.habilitado,
+      web: empresa.web || "",
+      corrienteServicios: empresa.corrienteServicios || "",
     });
     setEmpresaIdEditar(empresa.id);
     setModoEdicion(true);
@@ -118,6 +125,13 @@ export default function EmpresasAdminPage() {
     }
   };
 
+  const renderBooleanIcon = (value: boolean) =>
+    value ? (
+      <CheckCircleIcon className="h-5 w-5 text-green-500" />
+    ) : (
+      <XCircleIcon className="h-5 w-5 text-red-500" />
+    );
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
@@ -134,9 +148,19 @@ export default function EmpresasAdminPage() {
         data={empresas}
         columns={[
           { key: "nombre", label: "Nombre" },
-          { key: "provincia", label: "Provincia" },
-          { key: "localidad", label: "Localidad" },
+          { key: "email", label: "Email" },
+          { key: "direccion", label: "Dirección" },
           { key: "telefono", label: "Teléfono" },
+          {
+            key: "destacado",
+            label: "Destacada",
+            render: (empresa) => renderBooleanIcon(empresa.destacado),
+          },
+          {
+            key: "habilitado",
+            label: "Habilitada",
+            render: (empresa) => renderBooleanIcon(empresa.habilitado),
+          },
         ]}
         onEdit={abrirEditar}
         onDelete={eliminar}
@@ -177,6 +201,18 @@ export default function EmpresasAdminPage() {
             label="Dirección"
             name="direccion"
             value={form.direccion}
+            onChange={handleChange}
+          />
+          <FormField
+            label="Web"
+            name="web"
+            value={form.web || ""}
+            onChange={handleChange}
+          />
+          <FormField
+            label="Corriente de Servicios"
+            name="corrienteServicios"
+            value={form.corrienteServicios || ""}
             onChange={handleChange}
           />
 

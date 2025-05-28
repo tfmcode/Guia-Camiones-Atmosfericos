@@ -18,23 +18,27 @@ model Usuario {
 }
 
 model Empresa {
-  id            Int       @id @default(autoincrement())
-  slug          String    @unique
-  nombre        String
-  email         String?
-  telefono      String
-  direccion     String
-  provincia     String?
-  localidad     String?
-  servicios     String[]
-  imagenes      String[]
-  destacado     Boolean   @default(false)
-  habilitado    Boolean   @default(true)
-  fechaCreacion DateTime  @default(now())
+  id                   Int       @id @default(autoincrement())
+  slug                 String    @unique
+  nombre               String
+  email                String?
+  telefono             String
+  direccion            String
+  provincia            String?
+  localidad            String?
+  servicios            String[]
+  imagenes             String[]
+  destacado            Boolean   @default(false)
+  habilitado           Boolean   @default(true)
+  fechaCreacion        DateTime  @default(now())
 
-  usuarioId     Int?      @unique
-  usuario       Usuario?  @relation(fields: [usuarioId], references: [id])
+  web                  String?   
+  corrientesDeResiduos String?   
+
+  usuarioId            Int?      @unique
+  usuario              Usuario?  @relation(fields: [usuarioId], references: [id])
 }
+
 
 enum Rol {
   ADMIN

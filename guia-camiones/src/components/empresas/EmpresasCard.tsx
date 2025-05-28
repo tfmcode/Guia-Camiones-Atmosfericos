@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { MapPin, Phone, Globe, Mail } from "lucide-react"; // iconitos!
 import type { Empresa } from "@/types/empresa";
 
 interface Props {
@@ -9,9 +10,7 @@ interface Props {
 }
 
 const EmpresaCard = ({ empresa }: Props) => {
-  const imagenDestacada =
-    empresa.imagenes?.[0] ||
-    "https://res.cloudinary.com/demo/image/upload/sample.jpg";
+  const imagenDestacada = empresa.imagenes?.[0] || "/img/LaVictoria.webp";
 
   return (
     <Link
@@ -29,20 +28,37 @@ const EmpresaCard = ({ empresa }: Props) => {
         />
       </div>
 
-      <div className="p-4">
+      <div className="p-4 space-y-2">
         <h2 className="text-lg font-semibold text-blue-700 hover:underline">
           {empresa.nombre}
         </h2>
-        <p className="text-sm text-gray-600 mb-1">
-          {empresa.provincia || "-"} — {empresa.localidad || "-"}
-        </p>
-        <p className="text-sm mb-2 text-gray-700">
-          {empresa.servicios?.join(", ") || "Sin servicios"}
-        </p>
-        {empresa.destacado && (
-          <span className="inline-block text-xs text-white bg-yellow-500 px-2 py-1 rounded">
-            DESTACADA
-          </span>
+
+        {empresa.telefono && (
+          <p className="text-sm text-gray-700 flex items-center gap-1">
+            <Phone size={14} className="text-blue-500" />
+            {empresa.telefono}
+          </p>
+        )}
+
+        {empresa.web && (
+          <p className="text-sm text-gray-700 flex items-center gap-1">
+            <Globe size={14} className="text-blue-500" />
+            {empresa.web}
+          </p>
+        )}
+
+        {empresa.email && (
+          <p className="text-sm text-gray-700 flex items-center gap-1">
+            <Mail size={14} className="text-blue-500" />
+            {empresa.email}
+          </p>
+        )}
+
+        {empresa.direccion && (
+          <p className="text-sm text-gray-700 flex items-center gap-1">
+            <MapPin size={14} className="text-blue-500" />
+            {empresa.direccion}
+          </p>
         )}
       </div>
     </Link>

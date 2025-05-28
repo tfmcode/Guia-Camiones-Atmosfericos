@@ -12,6 +12,8 @@ export default function PanelEmpresa() {
     provincia: "",
     localidad: "",
     password: "",
+    web: "",
+    corrienteServicios: "",
   });
 
   const [provincias, setProvincias] = useState<
@@ -168,6 +170,32 @@ export default function PanelEmpresa() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Sitio web</label>
+          <input
+            type="url"
+            name="web"
+            value={form.web}
+            onChange={handleChange}
+            placeholder="https://www.ejemplo.com"
+            className="w-full border rounded px-3 py-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Corriente de servicios
+          </label>
+          <input
+            type="text"
+            name="corrienteServicios"
+            value={form.corrienteServicios}
+            onChange={handleChange}
+            placeholder="Corriente de servicios"
+            className="w-full border rounded px-3 py-2"
+          />
         </div>
 
         <div>

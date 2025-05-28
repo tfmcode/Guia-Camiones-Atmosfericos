@@ -7,9 +7,11 @@ export const empresaSchema = z.object({
   direccion: z.string().min(3, "Dirección requerida"),
   provincia: z.string().min(2, "Provincia requerida"),
   localidad: z.string().min(2, "Localidad requerida"),
+  web: z.string().url("URL inválida").optional().or(z.literal("")), // 👈 agregado
+  corrienteServicios: z.string().optional().or(z.literal("")), // 👈 agregado
   servicios: z.array(z.string()).optional(),
   imagenes: z.array(z.string()).optional(),
   destacado: z.boolean().optional(),
   habilitado: z.boolean().optional(),
-  usuarioId: z.number().optional(), // 👈 agregado como opcional
+  usuarioId: z.number().optional(),
 });

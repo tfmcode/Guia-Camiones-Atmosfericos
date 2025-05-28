@@ -1,7 +1,7 @@
 export interface Empresa {
   id: number;
   nombre: string;
-  slug: string; 
+  slug: string;
   email?: string;
   telefono: string;
   direccion: string;
@@ -10,7 +10,8 @@ export interface Empresa {
   destacado: boolean;
   habilitado: boolean;
   creadoEn: string;
-  web?: string;
+  web?: string; // nuevo
+  corrienteServicios?: string; // nuevo
   imagenes: string[];
   servicios: string[];
 }
