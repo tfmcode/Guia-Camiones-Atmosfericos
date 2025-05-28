@@ -59,7 +59,8 @@ export async function POST(req: NextRequest) {
     data: { nombre, email, password: hashed, rol },
   });
 
-  delete nuevo.password;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password: _, ...resto } = nuevo;
 
-  return NextResponse.json(nuevo, { status: 201 });
+  return NextResponse.json(resto, { status: 201 });
 }
