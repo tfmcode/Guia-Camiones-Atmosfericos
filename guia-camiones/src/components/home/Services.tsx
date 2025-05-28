@@ -12,12 +12,13 @@ const Services = () => {
         {/* Servicio 1 */}
         <div className="rounded-xl p-6 bg-rose-50 hover:bg-rose-100 transition duration-300 shadow-sm hover:shadow-md border border-rose-100">
           <h3 className="text-xl font-bold text-rose-700 mb-2">
-            Limpieza de Pozos Negros
+            Desagote de Pozos Ciegos
           </h3>
           <p className="text-gray-600">
             Servicio de vaciado completo mediante succión de alta potencia,
-            eliminando lodos y residuos acumulados. Incluye limpieza y
-            desinfección de las paredes del pozo para prevenir olores.
+            eliminando lodos y residuos acumulados. El desborde del pozo séptico
+            provoca filtraciones en el suelo. Causando malos olores en su
+            propiedad y sus alrededores.
           </p>
         </div>
 
@@ -27,9 +28,10 @@ const Services = () => {
             Desobstrucción de Cañerías
           </h3>
           <p className="text-gray-600">
-            Eliminación de bloqueos en sistemas de drenaje utilizando equipos
-            hidrojet de alta presión que restablecen el flujo normal sin dañar
-            las tuberías existentes.
+            Eliminación de bloqueos por medio de maquinas rotativas en sistemas
+            de drenaje. Limpieza de cañerías utilizando equipos hidrojet de alta
+            presión que restablecen el flujo normal sin dañar las tuberías
+            existentes.
           </p>
         </div>
 
@@ -39,9 +41,10 @@ const Services = () => {
             Mantenimiento Preventivo
           </h3>
           <p className="text-gray-600">
-            Programas regulares de inspección y limpieza para comunidades de
-            vecinos, empresas e instituciones, previniendo emergencias y
-            prolongando la vida útil de los sistemas.
+            Programas regulares de inspección con limpieza en cámaras sépticas y
+            cañerías. Servicios adaptados a comunidades de vecinos, empresas e
+            instituciones, previniendo emergencias y prolongando la vida útil de
+            los sistemas.
           </p>
         </div>
       </div>
