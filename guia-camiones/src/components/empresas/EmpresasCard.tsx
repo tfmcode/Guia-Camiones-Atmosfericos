@@ -10,7 +10,7 @@ interface Props {
 }
 
 const EmpresaCard = ({ empresa }: Props) => {
-  const imagenDestacada = empresa.imagenes?.[0] || "/img/LaVictoria.webp";
+  const imagenDestacada = empresa.imagenes?.[0] || "/img/sinFoto.png";
 
   return (
     <Link
