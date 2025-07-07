@@ -4,21 +4,19 @@ import { useEffect, useState, ChangeEvent } from "react";
 import DataTable from "@/components/ui/DataTable";
 import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
+import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
 import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
 
 export default function EmpresasAdminPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [usuariosEmpresa, setUsuariosEmpresa] = useState<
+    { id: number; email: string }[]
+  >([]);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [empresaIdEditar, setEmpresaIdEditar] = useState<number | null>(null);
-  
-/*   
-  const [todosLosServicios, setTodosLosServicios] = useState<
-    { id: number; nombre: string }[]
-  >([]);
- */
 
   const [provincias, setProvincias] = useState<
     { id: string; nombre: string }[]
@@ -29,19 +27,25 @@ export default function EmpresasAdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState<Omit<EmpresaInput, "slug">>({
+  const [form, setForm] = useState<
+    Omit<EmpresaInput, "slug"> & {
+      servicios: number[];
+      usuarioId: number | null;
+    }
+  >({
     nombre: "",
     email: "",
     telefono: "",
     direccion: "",
     provincia: "",
     localidad: "",
-/*     servicios: [],
- */    imagenes: [],
+    imagenes: [],
     destacado: false,
     habilitado: true,
     web: "",
     corrientes_de_residuos: "",
+    servicios: [],
+    usuarioId: null,
   });
 
   useEffect(() => {
@@ -55,6 +59,9 @@ export default function EmpresasAdminPage() {
         const provinciasData = await provinciasRes.json();
         setProvincias(provinciasData.provincias);
 
+        const usuariosRes = await fetch("/api/usuarios?rol=EMPRESA");
+        const usuariosData = await usuariosRes.json();
+        setUsuariosEmpresa(usuariosData);
       } catch (err) {
         console.error("Error al cargar datos iniciales:", err);
       }
@@ -98,13 +105,13 @@ export default function EmpresasAdminPage() {
       direccion: "",
       provincia: "",
       localidad: "",
-/*       servicios: [],
- */      imagenes: [],
-
+      imagenes: [],
       destacado: false,
       habilitado: true,
       web: "",
       corrientes_de_residuos: "",
+      servicios: [],
+      usuarioId: null,
     });
     setEmpresaIdEditar(null);
     setModoEdicion(false);
@@ -125,6 +132,12 @@ export default function EmpresasAdminPage() {
       habilitado: empresa.habilitado,
       web: empresa.web || "",
       corrientes_de_residuos: empresa.corrientes_de_residuos || "",
+      servicios: Array.isArray(empresa.servicios)
+        ? (empresa.servicios as { id: number; nombre: string }[]).map((s) =>
+            typeof s === "object" ? s.id : s
+          )
+        : [],
+      usuarioId: empresa.usuarioId ?? null,
     });
     setEmpresaIdEditar(empresa.id);
     setModoEdicion(true);
@@ -177,13 +190,13 @@ export default function EmpresasAdminPage() {
     );
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
         <h1 className="text-2xl font-bold">Empresas</h1>
         <button
           onClick={abrirNuevo}
           disabled={loading}
-          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto ${
             loading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
@@ -191,187 +204,194 @@ export default function EmpresasAdminPage() {
         </button>
       </div>
 
-      <DataTable
-        data={empresas}
-        columns={[
-          { key: "nombre", label: "Nombre" },
-          { key: "email", label: "Email" },
-          { key: "direccion", label: "Dirección" },
-          { key: "telefono", label: "Teléfono" },
-          {
-            key: "destacado",
-            label: "Destacada",
-            render: (empresa) => renderBooleanIcon(empresa.destacado),
-          },
-          {
-            key: "habilitado",
-            label: "Habilitada",
-            render: (empresa) => renderBooleanIcon(empresa.habilitado),
-          },
-        ]}
-        onEdit={abrirEditar}
-        onDelete={eliminar}
-      />
+      <div className="-mx-4 sm:mx-0 overflow-x-auto">
+        <DataTable
+          data={empresas}
+          columns={[
+            { key: "nombre", label: "Nombre" },
+            { key: "email", label: "Email" },
+            { key: "direccion", label: "Dirección" },
+            { key: "telefono", label: "Teléfono" },
+            {
+              key: "destacado",
+              label: "Destacada",
+              render: (empresa) => renderBooleanIcon(empresa.destacado),
+            },
+            {
+              key: "habilitado",
+              label: "Habilitada",
+              render: (empresa) => renderBooleanIcon(empresa.habilitado),
+            },
+          ]}
+          onEdit={abrirEditar}
+          onDelete={eliminar}
+        />
+      </div>
 
       <Modal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         title={modoEdicion ? "Editar Empresa" : "Nueva Empresa"}
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            guardar();
-          }}
-          className="space-y-4"
-        >
-          {error && (
-            <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
-              {error}
+        <div className="max-h-[80vh] overflow-y-auto p-1">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              guardar();
+            }}
+            className="space-y-4"
+          >
+            {error && (
+              <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
+                {error}
+              </div>
+            )}
+
+            <FormField
+              label="Nombre"
+              name="nombre"
+              value={form.nombre}
+              onChange={handleChange}
+            />
+            <FormField
+              label="Email"
+              name="email"
+              value={form.email || ""}
+              onChange={handleChange}
+              type="email"
+            />
+            <FormField
+              label="Teléfono"
+              name="telefono"
+              value={form.telefono}
+              onChange={handleChange}
+            />
+            <FormField
+              label="Dirección"
+              name="direccion"
+              value={form.direccion}
+              onChange={handleChange}
+            />
+            <FormField
+              label="Web"
+              name="web"
+              value={form.web || ""}
+              onChange={handleChange}
+            />
+            <FormField
+              label="Corriente de Residuos"
+              name="corrientes_de_residuos"
+              value={form.corrientes_de_residuos || ""}
+              onChange={handleChange}
+            />
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Usuario EMPRESA asignado
+              </label>
+              <select
+                name="usuarioId"
+                value={form.usuarioId ?? ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    usuarioId: e.target.value ? parseInt(e.target.value) : null,
+                  })
+                }
+                className="block w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              >
+                <option value="">Sin asignar</option>
+                {usuariosEmpresa.map((usuario) => (
+                  <option key={usuario.id} value={usuario.id}>
+                    {usuario.email} (ID {usuario.id})
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
 
-          <FormField
-            label="Nombre"
-            name="nombre"
-            value={form.nombre}
-            onChange={handleChange}
-          />
-          <FormField
-            label="Email"
-            name="email"
-            value={form.email || ""}
-            onChange={handleChange}
-            type="email"
-          />
-          <FormField
-            label="Teléfono"
-            name="telefono"
-            value={form.telefono}
-            onChange={handleChange}
-          />
-          <FormField
-            label="Dirección"
-            name="direccion"
-            value={form.direccion}
-            onChange={handleChange}
-          />
-          <FormField
-            label="Web"
-            name="web"
-            value={form.web || ""}
-            onChange={handleChange}
-          />
-          <FormField
-            label="Corriente de Residuos"
-            name="corrientes_de_residuos"
-            value={form.corrientes_de_residuos || ""}
-            onChange={handleChange}
-          />
-
-          {/* Provincia */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Provincia
-            </label>
-            <select
-              name="provincia"
-              value={form.provincia}
-              onChange={(e) =>
-                setForm({ ...form, provincia: e.target.value, localidad: "" })
-              }
-              className="block w-full border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">Seleccione una provincia</option>
-              {provincias.map((prov) => (
-                <option key={prov.id} value={prov.nombre}>
-                  {prov.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Localidad */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Localidad
-            </label>
-            <select
-              name="localidad"
-              value={form.localidad}
-              onChange={(e) => setForm({ ...form, localidad: e.target.value })}
-              className="block w-full border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">Seleccione una localidad</option>
-              {localidades.map((loc) => (
-                <option key={loc.id} value={loc.nombre}>
-                  {loc.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Servicios */}
-      {/*     <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Servicios ofrecidos
-            </label>
-            <select
-              multiple
-              name="servicios"
-              value={form.servicios.map(String)}
-              onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions, (opt) =>
-                  parseInt(opt.value)
-                );
-                setForm({ ...form, servicios: selected });
-              }}
-              className="block w-full border border-gray-300 rounded px-3 py-2 h-32"
-            >
-              {todosLosServicios.map((servicio) => (
-                <option key={servicio.id} value={servicio.id}>
-                  {servicio.nombre}
-                </option>
-              ))}
-            </select>
-          </div> */}
-
-          {/* Checkboxes */}
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.destacado}
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Provincia
+              </label>
+              <select
+                name="provincia"
+                value={form.provincia}
                 onChange={(e) =>
-                  setForm({ ...form, destacado: e.target.checked })
+                  setForm({ ...form, provincia: e.target.value, localidad: "" })
                 }
-              />
-              Destacada
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.habilitado}
-                onChange={(e) =>
-                  setForm({ ...form, habilitado: e.target.checked })
-                }
-              />
-              Habilitada
-            </label>
-          </div>
+                className="block w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              >
+                <option value="">Seleccione una provincia</option>
+                {provincias.map((prov) => (
+                  <option key={prov.id} value={prov.nombre}>
+                    {prov.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              {loading ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </form>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Localidad
+              </label>
+              <select
+                name="localidad"
+                value={form.localidad}
+                onChange={(e) =>
+                  setForm({ ...form, localidad: e.target.value })
+                }
+                className="block w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              >
+                <option value="">Seleccione una localidad</option>
+                {localidades.map((loc) => (
+                  <option key={loc.id} value={loc.nombre}>
+                    {loc.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <ServicioMultiSelect
+              serviciosSeleccionados={form.servicios}
+              onChange={(ids) => setForm({ ...form, servicios: ids })}
+            />
+
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.destacado}
+                  onChange={(e) =>
+                    setForm({ ...form, destacado: e.target.checked })
+                  }
+                />
+                Destacada
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.habilitado}
+                  onChange={(e) =>
+                    setForm({ ...form, habilitado: e.target.checked })
+                  }
+                />
+                Habilitada
+              </label>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                {loading ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </div>
       </Modal>
     </div>
   );

@@ -22,7 +22,7 @@ export default function FormField({
   error,
 }: Props) {
   const inputStyles =
-    "block w-full px-4 py-2 rounded-md border text-sm text-zinc-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all";
+    "block w-full min-h-[44px] px-4 py-2.5 rounded-lg border text-sm text-zinc-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1c2e39] transition-all";
 
   return (
     <div className="space-y-2">

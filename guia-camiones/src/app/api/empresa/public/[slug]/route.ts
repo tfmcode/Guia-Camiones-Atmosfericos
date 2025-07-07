@@ -3,9 +3,9 @@ import pool from "@/lib/db";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
-  const { slug } = params;
+  const slug = context.params.slug; // ✅ Forma correcta
 
   try {
     // Obtener la empresa por slug

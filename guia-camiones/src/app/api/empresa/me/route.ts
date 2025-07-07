@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/* ✅ PUT: actualizar datos de la empresa logueada */
+/* ✅ PUT: actualizar datos de la empresa logueada y devolver actualizada */
 export async function PUT(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -133,8 +133,28 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    // 🔄 Devolver la empresa actualizada con servicios
+    const updatedEmpresaQuery = `
+      SELECT e.*,
+        COALESCE(
+          JSON_AGG(
+            json_build_object('id', s.id, 'nombre', s.nombre)
+          ) FILTER (WHERE s.id IS NOT NULL), '[]'
+        ) AS servicios
+      FROM empresa e
+      LEFT JOIN empresa_servicio es ON e.id = es.empresa_id
+      LEFT JOIN servicio s ON es.servicio_id = s.id
+      WHERE e.id = $1
+      GROUP BY e.id
+    `;
+    const { rows: updatedRows } = await pool.query(updatedEmpresaQuery, [
+      empresa.id,
+    ]);
+    const updatedEmpresa = updatedRows[0];
+
     return NextResponse.json({
       message: "Empresa actualizada correctamente",
+      empresa: updatedEmpresa,
     });
   } catch (error) {
     console.error("❌ Error al actualizar empresa:", error);

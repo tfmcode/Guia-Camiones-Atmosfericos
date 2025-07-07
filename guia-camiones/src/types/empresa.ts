@@ -1,20 +1,22 @@
+import type { Servicio } from "./servicio";
+
 export interface Empresa {
   id: number;
   nombre: string;
-  slug: string; // Se mantiene para mostrar en frontend
+  slug: string;
   email?: string;
   telefono: string;
   direccion: string;
   provincia?: string;
   localidad?: string;
-  servicios?: { id: number; nombre: string }[];
+  servicios?: Servicio[]; // ✅ CAMBIADO de number[] a Servicio[]
   imagenes: string[];
   destacado: boolean;
   habilitado: boolean;
   web?: string;
   corrientes_de_residuos?: string;
   usuarioId?: number | null;
-  creado_en?: string; // Mejor para manejo en frontend
+  creado_en?: string;
 }
 
 export interface EmpresaInput {
@@ -24,7 +26,7 @@ export interface EmpresaInput {
   direccion: string;
   provincia?: string;
   localidad?: string;
-  servicios?: number[]; // IDs de servicios
+  servicios?: number[]; // ✅ Para creación/edición sigue siendo number[]
   imagenes: string[];
   destacado: boolean;
   habilitado: boolean;
