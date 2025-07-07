@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import {  usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LogoutButton from "@/components/layout/LogoutButton";
 import Link from "next/link";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon } from "@heroicons/react/24/outline";
 
 const SIDEBAR_WIDTH = "w-64"; // un solo punto de verdad
 
@@ -14,7 +14,7 @@ export default function EmpresaLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const {  loading } = useAuth();
+  const { loading } = useAuth();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -26,8 +26,6 @@ export default function EmpresaLayout({
     );
   }
 
- 
-
   const nav: { label: string; href: string }[] = [
     { label: "Mi Empresa", href: "/panel/empresa" },
   ];
@@ -37,7 +35,7 @@ export default function EmpresaLayout({
 
   const Sidebar = (
     <aside
-      className={`h-full ${SIDEBAR_WIDTH} bg-white border-r border-zinc-200 shadow-sm flex flex-col`}
+      className={`h-full ${SIDEBAR_WIDTH} bg-white border-r border-zinc-200 shadow-sm flex flex-col overflow-y-auto`}
     >
       <div className="px-6 py-6">
         <h2 className="text-xl font-extrabold text-[#172a56] mb-1">
@@ -90,21 +88,17 @@ export default function EmpresaLayout({
 
         {open && (
           <div className="fixed inset-0 z-40 flex">
-            {Sidebar}
+            <div className="relative transform transition-transform duration-300 translate-x-0">
+              {Sidebar}
+            </div>
             <div
               className="flex-grow bg-black/40"
               onClick={() => setOpen(false)}
             />
-            <button
-              className="absolute top-4 right-4 text-zinc-600 md:hidden"
-              onClick={() => setOpen(false)}
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
           </div>
         )}
 
-        <main className="pt-16 px-4 pb-10">{children}</main>
+        <main className="pt-16 px-4 sm:px-6 pb-10">{children}</main>
       </div>
     </div>
   );

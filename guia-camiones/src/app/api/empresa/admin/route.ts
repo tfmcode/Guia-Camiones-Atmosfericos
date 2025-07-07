@@ -44,8 +44,9 @@ export async function POST(req: NextRequest) {
       destacado = false,
       habilitado = true,
       web,
-      corrienteServicios,
+      corrientes_de_residuos,
       usuarioId,
+      servicios = [], // ✅ capturamos servicios si vienen
     } = body;
 
     if (!nombre || !telefono || !direccion) {
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
 
     const slug = generarSlug(nombre);
 
+    // Insertar empresa
     const insertQuery = `
       INSERT INTO empresa 
       (nombre, slug, email, telefono, direccion, provincia, localidad, imagenes, destacado, habilitado, web, corrientes_de_residuos, usuario_id)
@@ -75,14 +77,28 @@ export async function POST(req: NextRequest) {
       destacado,
       habilitado,
       web || null,
-      corrienteServicios || null,
+      corrientes_de_residuos || null,
       usuarioId || null,
     ];
 
     const { rows } = await pool.query(insertQuery, values);
-    const nueva = rows[0];
+    const nuevaEmpresa = rows[0];
 
-    return NextResponse.json(nueva, { status: 201 });
+    // ✅ Insertar en empresa_servicio si hay servicios seleccionados
+    if (Array.isArray(servicios) && servicios.length > 0) {
+      const insertValues = servicios
+        .map((_, idx) => `($1, $${idx + 2})`)
+        .join(", ");
+      const insertParams = [nuevaEmpresa.id, ...servicios];
+
+      const insertServiciosQuery = `
+        INSERT INTO empresa_servicio (empresa_id, servicio_id)
+        VALUES ${insertValues}
+      `;
+      await pool.query(insertServiciosQuery, insertParams);
+    }
+
+    return NextResponse.json(nuevaEmpresa, { status: 201 });
   } catch (error) {
     console.error("❌ Error al crear empresa:", error);
     return NextResponse.json(

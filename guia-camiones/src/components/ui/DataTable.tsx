@@ -53,22 +53,28 @@ export default function DataTable<T extends { nombre?: string }>({
           placeholder="Buscar por nombre..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-1 text-sm"
+          className="border border-gray-300 rounded px-3 py-1 text-sm w-full sm:w-auto"
         />
       </div>
 
+      {/* Tabla */}
       <div className="overflow-x-auto rounded-xl ring-1 ring-gray-200 shadow-sm bg-white">
         <div className="relative">
           <table className="min-w-full text-sm text-left">
             <thead className="bg-zinc-100 text-zinc-600 uppercase text-xs tracking-wide sticky top-0 z-10">
               <tr>
                 {columns.map((col) => (
-                  <th key={String(col.key)} className="px-4 py-3">
+                  <th
+                    key={String(col.key)}
+                    className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap"
+                  >
                     {col.label}
                   </th>
                 ))}
                 {hasActions && (
-                  <th className="px-4 py-3 text-center">Acciones</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-center whitespace-nowrap">
+                    Acciones
+                  </th>
                 )}
               </tr>
             </thead>
@@ -91,18 +97,18 @@ export default function DataTable<T extends { nombre?: string }>({
                     {columns.map((col) => (
                       <td
                         key={String(col.key)}
-                        className="px-4 py-3 text-zinc-700 whitespace-nowrap"
+                        className="px-2 py-2 sm:px-4 sm:py-3 text-zinc-700 whitespace-nowrap"
                       >
                         {col.render ? col.render(item) : String(item[col.key])}
                       </td>
                     ))}
                     {hasActions && (
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <div className="inline-flex gap-3 items-center justify-center">
+                      <td className="px-2 py-2 sm:px-4 sm:py-3 text-center whitespace-nowrap">
+                        <div className="inline-flex gap-2 sm:gap-3 items-center justify-center">
                           {onEdit && (
                             <button
                               onClick={() => onEdit(item)}
-                              className="text-rose-600 hover:text-rose-800 transition"
+                              className="text-rose-600 hover:text-rose-800 transition p-1 rounded focus:outline-none focus:ring focus:ring-rose-300"
                               title="Editar"
                             >
                               <Pencil size={16} />
@@ -111,7 +117,7 @@ export default function DataTable<T extends { nombre?: string }>({
                           {onDelete && (
                             <button
                               onClick={() => onDelete(item)}
-                              className="text-gray-500 hover:text-red-600 transition"
+                              className="text-gray-500 hover:text-red-600 transition p-1 rounded focus:outline-none focus:ring focus:ring-red-300"
                               title="Eliminar"
                             >
                               <Trash2 size={16} />
@@ -130,11 +136,11 @@ export default function DataTable<T extends { nombre?: string }>({
 
       {/* Paginación */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 py-4 text-sm">
+        <div className="flex flex-wrap justify-center items-center gap-1 sm:gap-2 py-4 text-sm">
           <button
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+            className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 w-full sm:w-auto"
           >
             Anterior
           </button>
@@ -144,7 +150,7 @@ export default function DataTable<T extends { nombre?: string }>({
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+            className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 w-full sm:w-auto"
           >
             Siguiente
           </button>

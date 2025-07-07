@@ -293,7 +293,7 @@ const Navbar = () => {
 
         {/* Menú móvil desplegable */}
         {showMenu && (
-          <div className="md:hidden mt-4 flex flex-col gap-4">
+          <div className="md:hidden mt-4 flex flex-col gap-4" style={{ marginBottom: "16px" }}>
             <div className="flex flex-col gap-2">
               <div className="relative w-full" ref={serviciosRef}>
                 <input

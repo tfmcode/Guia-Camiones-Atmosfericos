@@ -30,8 +30,9 @@ export async function PUT(req: NextRequest) {
       destacado = false,
       habilitado = true,
       web,
-      corrienteServicios,
+      corrientes_de_residuos,
       usuarioId,
+      servicios = [], // ✅ capturamos los servicios
     } = body;
 
     if (!nombre || !telefono || !direccion) {
@@ -73,7 +74,7 @@ export async function PUT(req: NextRequest) {
       destacado,
       habilitado,
       web || null,
-      corrienteServicios || null,
+      corrientes_de_residuos || null,
       usuarioId || null,
       Number(id),
     ];
@@ -86,6 +87,28 @@ export async function PUT(req: NextRequest) {
         { message: "Empresa no encontrada" },
         { status: 404 }
       );
+    }
+
+    // ✅ Actualizar servicios asociados
+    if (Array.isArray(servicios)) {
+      // 1) Borrar servicios anteriores
+      await pool.query("DELETE FROM empresa_servicio WHERE empresa_id = $1", [
+        Number(id),
+      ]);
+
+      // 2) Insertar nuevos servicios si vienen
+      if (servicios.length > 0) {
+        const insertValues = servicios
+          .map((_, idx) => `($1, $${idx + 2})`)
+          .join(", ");
+        const insertParams = [Number(id), ...servicios];
+
+        const insertQuery = `
+          INSERT INTO empresa_servicio (empresa_id, servicio_id)
+          VALUES ${insertValues}
+        `;
+        await pool.query(insertQuery, insertParams);
+      }
     }
 
     return NextResponse.json(actualizada);

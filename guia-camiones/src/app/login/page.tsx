@@ -19,7 +19,7 @@ const Login = () => {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // para JWT en cookies
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -51,14 +51,16 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f6f8fb] px-4">
+    <div className="flex items-center justify-center bg-[#f6f8fb] px-4 py-10">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md bg-white rounded-2xl shadow-lg p-10 space-y-6"
+        className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-4 sm:p-6 space-y-6"
       >
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-[#172a56]">Iniciar sesión</h2>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#172a56]">
+            Iniciar sesión
+          </h2>
+          <p className="text-sm sm:text-base text-zinc-500 mt-1">
             Accedé a tu panel de empresa o administración
           </p>
         </div>
@@ -79,7 +81,7 @@ const Login = () => {
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
             required
-            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#172a56] text-sm"
+            className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#172a56] text-sm"
           />
         </div>
 
@@ -93,7 +95,7 @@ const Login = () => {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
-            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#172a56] text-sm"
+            className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#172a56] text-sm"
           />
         </div>
 

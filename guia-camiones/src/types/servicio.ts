@@ -1,9 +1,14 @@
-import { Empresa } from "./empresa";
+// types/servicio.ts
 
 export interface Servicio {
   id: number;
   nombre: string;
-  empresas?: Empresa[];
 }
 
-export type ServicioInput = Omit<Servicio, "id" | "empresas">;
+// ⚠️ ServicioInput NO DEBE SER Servicio[]
+// Si usás ServicioInput para creación, debería ser:
+export interface ServicioInput {
+  nombre: string;
+}
+
+// O si no lo usás, podés eliminar ServicioInput.

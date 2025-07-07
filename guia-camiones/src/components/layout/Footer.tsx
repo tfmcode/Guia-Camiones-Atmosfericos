@@ -7,17 +7,21 @@ import { Facebook, Instagram, Twitter } from "lucide-react";
 const Footer = () => {
   return (
     <footer className="bg-white border-t border-gray-200">
-      <div className="max-w-screen-xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/" className="flex items-center gap-3 mb-6 sm:mb-0">
+      <div className="max-w-screen-xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
+        {/* Logo + Redes */}
+        <div className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            href="/"
+            className="flex flex-col items-center gap-3 mb-6 sm:flex-row sm:mb-0"
+          >
             <Image
               src="/img/LogoGA.png"
               alt="Logo"
-              width={250}
-              height={250}
-              className="rounded-full"
+              width={150}
+              height={150}
+              className="rounded-full w-32 h-32 object-cover"
             />
-            <div className="flex flex-col items-start leading-tight">
+            <div className="flex flex-col items-center sm:items-start leading-tight">
               <span className="text-md font-bold text-[#1c2e39]">
                 GUÍA DE CAMIONES
               </span>
@@ -55,7 +59,8 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mt-12 border-t border-gray-100 pt-12">
+        {/* Links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mt-10 border-t border-gray-100 pt-10 text-center sm:text-left">
           {[
             {
               title: "Servicios",
@@ -88,7 +93,7 @@ const Footer = () => {
           ))}
         </div>
 
-        <p className="text-xs text-gray-500 text-center mt-12">
+        <p className="text-xs text-gray-500 text-center mt-10">
           &copy; {new Date().getFullYear()} Guía de Camiones Atmosféricos. Todos
           los derechos reservados.
         </p>

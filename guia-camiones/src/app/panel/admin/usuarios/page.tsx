@@ -64,7 +64,6 @@ export default function UsuariosAdminPage() {
   };
 
   const guardar = async () => {
-    // Validación mínima antes de enviar
     if (!form.nombre.trim() || !form.email.trim()) {
       setError("Nombre y Email son obligatorios.");
       return;
@@ -106,12 +105,12 @@ export default function UsuariosAdminPage() {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
         <h1 className="text-2xl font-bold">Usuarios</h1>
         <button
           onClick={abrirNuevo}
-          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto ${
             loading ? "opacity-50 cursor-not-allowed" : ""
           }`}
           disabled={loading}
@@ -120,86 +119,93 @@ export default function UsuariosAdminPage() {
         </button>
       </div>
 
-      <DataTable
-        data={usuarios}
-        columns={[
-          { key: "nombre", label: "Nombre" },
-          { key: "email", label: "Email" },
-          { key: "rol", label: "Rol" },
-        ]}
-        onEdit={abrirEditar}
-        onDelete={eliminar}
-      />
+      <div className="-mx-4 sm:mx-0 overflow-x-auto">
+        <DataTable
+          data={usuarios}
+          columns={[
+            { key: "nombre", label: "Nombre" },
+            { key: "email", label: "Email" },
+            { key: "rol", label: "Rol" },
+          ]}
+          onEdit={abrirEditar}
+          onDelete={eliminar}
+        />
+      </div>
 
       <Modal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         title={modoEdicion ? "Editar Usuario" : "Nuevo Usuario"}
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            guardar();
-          }}
-          className="space-y-4"
-        >
-          {error && (
-            <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
-              {error}
+        <div className="max-h-[80vh] overflow-y-auto">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              guardar();
+            }}
+            className="space-y-4"
+          >
+            {error && (
+              <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
+                {error}
+              </div>
+            )}
+
+            <FormField
+              label="Nombre"
+              name="nombre"
+              value={form.nombre}
+              onChange={handleChange}
+            />
+            <FormField
+              label="Email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              type="email"
+            />
+            <FormField
+              label="Contraseña"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              type="password"
+            />
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Rol
+              </label>
+              <select
+                name="rol"
+                value={form.rol}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    rol: e.target.value as UsuarioInput["rol"],
+                  })
+                }
+                className="block w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="ADMIN">ADMIN</option>
+                <option value="EMPRESA">EMPRESA</option>
+                <option value="USUARIO">USUARIO</option>
+              </select>
             </div>
-          )}
 
-          <FormField
-            label="Nombre"
-            name="nombre"
-            value={form.nombre}
-            onChange={handleChange}
-          />
-          <FormField
-            label="Email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            type="email"
-          />
-          <FormField
-            label="Contraseña"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            type="password"
-          />
-
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Rol
-            </label>
-            <select
-              name="rol"
-              value={form.rol}
-              onChange={(e) =>
-                setForm({ ...form, rol: e.target.value as UsuarioInput["rol"] })
-              }
-              className="block w-full border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="ADMIN">ADMIN</option>
-              <option value="EMPRESA">EMPRESA</option>
-              <option value="USUARIO">USUARIO</option>
-            </select>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              {loading ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                {loading ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </div>
       </Modal>
     </div>
   );
