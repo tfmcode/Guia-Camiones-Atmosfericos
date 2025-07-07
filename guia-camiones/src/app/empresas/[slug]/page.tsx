@@ -1,25 +1,26 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Empresa } from "@/types/empresa";
-import { prisma } from "@/lib/prisma";
 import { getEmpresaBySlug } from "@/lib/api/empresaService";
 
+// ✅ Genera slugs dinámicos usando fetch al API público
 export async function generateStaticParams() {
-  const empresas: { slug: string }[] = await prisma.empresa.findMany({
-    select: { slug: true },
-  });
-  return empresas.map((empresa: { slug: string }) => ({
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SITE_URL}/api/empresa/public`,
+    { next: { revalidate: 60 } }
+  );
+  const empresas: Empresa[] = await res.json();
+
+  return empresas.map((empresa) => ({
     slug: empresa.slug,
   }));
 }
 
 export default async function EmpresaDetail({
-  params: paramsPromise,
+  params: { slug },
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await paramsPromise;
-
   const empresa: Empresa | null = await getEmpresaBySlug(slug);
   if (!empresa) return notFound();
 
@@ -73,7 +74,7 @@ export default async function EmpresaDetail({
             <p className="text-sm text-zinc-500 mb-1">Servicios</p>
             <p className="text-zinc-800 font-medium">
               {empresa.servicios?.length > 0
-                ? empresa.servicios.join(", ")
+                ? empresa.servicios.map((s) => s.nombre).join(", ")
                 : "No especificado"}
             </p>
           </div>

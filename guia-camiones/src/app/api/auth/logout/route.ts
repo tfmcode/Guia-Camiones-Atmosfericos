@@ -1,11 +1,10 @@
+// src/app/api/auth/logout/route.ts
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const response = NextResponse.json({ message: "Sesión cerrada" });
-  response.cookies.set("token", "", {
-    httpOnly: true,
-    path: "/",
-    maxAge: 0, // Eliminar cookie
-  });
-  return response;
+  const cookieStore = await cookies();
+  cookieStore.delete("token");
+
+  return NextResponse.json({ message: "Sesión cerrada" }, { status: 200 });
 }

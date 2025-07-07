@@ -1,68 +1,90 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay } from "swiper/modules";
+
+// Importa estilos de Swiper
+import "swiper/css";
+import "swiper/css/autoplay";
 
 const preguntas = [
   {
-    pregunta: "¿Cuándo debo llamar a un camión atmosférico?",
-    respuesta:
-      "Cuando tenés pozos negros llenos, olores fuertes o sistemas de drenaje lentos. También como mantenimiento preventivo cada cierto tiempo.",
+    titulo: "Sobre el Servicio y Cuándo Solicitarlo",
+    slug: "servicio-cuando-solicitarlo",
   },
   {
-    pregunta: "¿Qué normativas deben cumplir estos servicios?",
-    respuesta:
-      "Los servicios deben cumplir con regulaciones ambientales locales y estar habilitados por entes municipales o provinciales.",
+    titulo: "Normativas y seguridad",
+    slug: "normativas-y-seguridad",
   },
   {
-    pregunta: "¿Cómo se determina el precio del servicio?",
-    respuesta:
-      "El precio varía según la distancia, el volumen a retirar, el tipo de residuo y la urgencia del servicio (por ejemplo, atención 24h).",
+    titulo: "Costos y Presupuestos",
+    slug: "costos-y-presupuestos",
+  },
+  {
+    titulo: "Mantenimiento y Prevención",
+    slug: "mantenimiento-y-prevencion",
+  },
+  {
+    titulo: "Sobre la Empresa y la Flota",
+    slug: "empresa-y-flota",
   },
 ];
 
+const images = ["/img/empresa1.png", "/img/empresa2.png"];
+
 const Faq = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const toggle = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
-
   return (
     <section className="bg-zinc-900 text-white py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-12">
-          Preguntas Frecuentes
-        </h2>
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* Columna izquierda: Preguntas */}
+        <div className="lg:col-span-2">
+          <h2 className="text-3xl md:text-4xl font-extrabold mb-10 text-center">
+            Preguntas Frecuentes
+          </h2>
 
-        <div className="space-y-6">
-          {preguntas.map((item, index) => {
-            const isOpen = openIndex === index;
-            return (
-              <div
-                key={index}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg transition-shadow hover:shadow-md"
-              >
-                <button
-                  onClick={() => toggle(index)}
-                  className="w-full flex justify-between items-center p-5 text-left text-lg font-semibold text-white focus:outline-none"
+          <ul className="space-y-4">
+            {preguntas.map((item, index) => (
+              <li key={index}>
+                <Link
+                  href={`/faq/${item.slug}`}
+                  className="block bg-zinc-800 border border-zinc-700 rounded-lg px-5 py-4 hover:bg-zinc-700 transition text-lg font-medium"
                 >
-                  <span>{item.pregunta}</span>
-                  {isOpen ? (
-                    <ChevronUp className="w-5 h-5 text-rose-500" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-rose-500" />
-                  )}
-                </button>
+                  {item.titulo}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-                {isOpen && (
-                  <div className="px-5 pb-5 text-gray-300 text-base transition-all duration-300">
-                    {item.respuesta}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {/* Columna derecha: Carrusel */}
+        <div className="flex flex-col items-center lg:items-start justify-center ">
+          <h3 className="text-xl font-semibold mb-6 text-center lg:text-left">
+            Empresas que cumplen estas condiciones
+          </h3>
+
+          <Swiper
+            modules={[Autoplay]}
+            autoplay={{ delay: 1250, disableOnInteraction: false }}
+            loop={true}
+            spaceBetween={16}
+            className="w-full max-w-sm rounded-lg overflow-hidden shadow-md"
+          >
+            {images.map((src, idx) => (
+              <SwiperSlide key={idx}>
+                <div className="w-full h-52 bg-zinc-800 flex items-center justify-center rounded-lg">
+                  <Image
+                    src={src}
+                    alt={`empresa ${idx + 1}`}
+                    width={400}
+                    height={208}
+                    className="object-contain w-full h-full"
+                  />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
         </div>
       </div>
     </section>

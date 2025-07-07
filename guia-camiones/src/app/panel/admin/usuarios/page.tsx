@@ -18,15 +18,22 @@ export default function UsuariosAdminPage() {
   });
   const [modoEdicion, setModoEdicion] = useState(false);
   const [usuarioIdEditar, setUsuarioIdEditar] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchUsuarios();
   }, []);
 
   const fetchUsuarios = async () => {
-    const res = await fetch("/api/usuarios");
-    const data = await res.json();
-    setUsuarios(data);
+    try {
+      const res = await fetch("/api/usuarios");
+      const data = await res.json();
+      setUsuarios(data);
+    } catch (error) {
+      console.error("Error al cargar usuarios:", error);
+      alert("Error al cargar usuarios.");
+    }
   };
 
   const handleChange = (
@@ -39,6 +46,7 @@ export default function UsuariosAdminPage() {
     setForm({ nombre: "", email: "", password: "", rol: "ADMIN" });
     setUsuarioIdEditar(null);
     setModoEdicion(false);
+    setError("");
     setModalAbierto(true);
   };
 
@@ -51,23 +59,49 @@ export default function UsuariosAdminPage() {
     });
     setUsuarioIdEditar(usuario.id);
     setModoEdicion(true);
+    setError("");
     setModalAbierto(true);
   };
 
   const guardar = async () => {
-    if (modoEdicion && usuarioIdEditar !== null) {
-      await axios.put(`/api/usuarios/${usuarioIdEditar}`, form);
-    } else {
-      await axios.post("/api/usuarios", form);
+    // Validación mínima antes de enviar
+    if (!form.nombre.trim() || !form.email.trim()) {
+      setError("Nombre y Email son obligatorios.");
+      return;
     }
-    setModalAbierto(false);
-    fetchUsuarios();
+    if (!modoEdicion && form.password.length < 4) {
+      setError("La contraseña debe tener al menos 4 caracteres.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (modoEdicion && usuarioIdEditar !== null) {
+        await axios.put(`/api/usuarios/${usuarioIdEditar}`, form);
+      } else {
+        await axios.post("/api/usuarios", form);
+      }
+      setModalAbierto(false);
+      fetchUsuarios();
+    } catch (error) {
+      console.error("Error al guardar usuario:", error);
+      alert("Error al guardar usuario.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const eliminar = async (usuario: Usuario) => {
-    if (confirm(`¿Eliminar a ${usuario.nombre}?`)) {
+    if (!confirm(`¿Eliminar a ${usuario.nombre}?`)) return;
+    setLoading(true);
+    try {
       await axios.delete(`/api/usuarios/${usuario.id}`);
       fetchUsuarios();
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error);
+      alert("Error al eliminar usuario.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,7 +111,10 @@ export default function UsuariosAdminPage() {
         <h1 className="text-2xl font-bold">Usuarios</h1>
         <button
           onClick={abrirNuevo}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          disabled={loading}
         >
           Nuevo Usuario
         </button>
@@ -106,6 +143,12 @@ export default function UsuariosAdminPage() {
           }}
           className="space-y-4"
         >
+          {error && (
+            <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <FormField
             label="Nombre"
             name="nombre"
@@ -148,9 +191,12 @@ export default function UsuariosAdminPage() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              disabled={loading}
+              className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
-              Guardar
+              {loading ? "Guardando..." : "Guardar"}
             </button>
           </div>
         </form>

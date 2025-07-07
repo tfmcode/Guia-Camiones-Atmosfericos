@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LogoutButton from "@/components/layout/LogoutButton";
 import Link from "next/link";
@@ -12,20 +11,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { usuario, loading } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (!loading) {
-      if (!usuario) {
-        router.push("/login");
-      } else if (usuario.rol !== "ADMIN") {
-        router.push("/unauthorized");
-      }
-    }
-  }, [usuario, loading, router]);
-
-  if (loading || !usuario) {
+  if (loading) {
     return (
       <div className="p-6 text-center text-zinc-600">
         Cargando panel de administrador...
@@ -43,8 +31,10 @@ export default function AdminLayout({
     <div className="min-h-screen flex bg-zinc-50">
       <aside className="w-64 bg-white border-r border-zinc-200 shadow-sm px-6 py-6 flex flex-col">
         <div className="mb-8">
-          <h2 className="text-xl font-extrabold text-rose-600">Admin Panel</h2>
-          <p className="text-sm text-zinc-500">{usuario.nombre}</p>
+          <h2 className="text-xl font-extrabold text-[#1c2e39]">Admin Panel</h2>
+          <p className="text-sm text-zinc-500">
+            {usuario?.nombre ?? "Administrador"}
+          </p>
         </div>
 
         <nav className="flex flex-col gap-1 text-sm text-zinc-700 font-medium">
@@ -57,13 +47,13 @@ export default function AdminLayout({
                 href={href}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg transition ${
                   isActive
-                    ? "bg-rose-100 text-rose-700 font-semibold"
+                    ? "bg-[#1c2e39]/10 text-[#1c2e39] font-semibold"
                     : "hover:bg-zinc-100"
                 }`}
               >
                 <span>{label}</span>
                 {isActive && (
-                  <span className="w-2 h-2 rounded-full bg-rose-600" />
+                  <span className="w-2 h-2 rounded-full bg-[#1c2e39]" />
                 )}
               </Link>
             );

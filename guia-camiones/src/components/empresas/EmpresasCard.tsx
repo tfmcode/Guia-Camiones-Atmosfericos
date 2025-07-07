@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Phone, Globe, Mail } from "lucide-react"; // iconitos!
+import { MapPin, Phone, Globe, Mail } from "lucide-react"; 
 import type { Empresa } from "@/types/empresa";
 
 interface Props {

@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { EmpresaInput } from "@/types";
+import { useRouter } from "next/navigation";
 
 export default function PanelEmpresa() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<EmpresaInput>({
     nombre: "",
     email: "",
     telefono: "",
     direccion: "",
     provincia: "",
     localidad: "",
-    password: "",
     web: "",
-    corrienteServicios: "",
+    corrientes_de_residuos: "",
+    imagenes: [],
+    destacado: false,
+    habilitado: true,
   });
 
   const [provincias, setProvincias] = useState<
@@ -23,24 +27,34 @@ export default function PanelEmpresa() {
     { id: string; nombre: string }[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const fetchEmpresa = async () => {
       try {
-        const res = await axios.get("/api/empresa/me");
-        if (res.data && typeof res.data === "object") {
-          setForm((prevForm) => ({
-            ...prevForm, // mantiene todos los campos originales
-            ...(typeof res.data === "object" && res.data !== null
-              ? res.data
-              : {}), // añade datos de la API
-            password: "", // fuerza password vacío
-          }));
-        } else {
-          console.error("Datos inválidos:", res.data);
-        }
+        const res = await axios.get<{ empresa: EmpresaInput }>("/api/empresa/me", {
+          withCredentials: true,
+        });
+        const { empresa } = res.data;
+
+        setForm({
+          nombre: empresa.nombre ?? "",
+          email: empresa.email ?? "",
+          telefono: empresa.telefono ?? "",
+          direccion: empresa.direccion ?? "",
+          provincia: empresa.provincia ?? "",
+          localidad: empresa.localidad ?? "",
+          web: empresa.web ?? "",
+          corrientes_de_residuos: empresa.corrientes_de_residuos ?? "",
+          imagenes: empresa.imagenes ?? [],
+          destacado: empresa.destacado ?? false,
+          habilitado: empresa.habilitado ?? true,
+        });
       } catch (error) {
-        console.error("Error al cargar datos:", error);
+        console.error("Error al obtener datos de empresa:", error);
+        setError("Error al cargar los datos de la empresa.");
       } finally {
         setLoading(false);
       }
@@ -64,42 +78,55 @@ export default function PanelEmpresa() {
   }, [form.provincia]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
+    setError("");
+
     try {
-      await axios.put("/api/empresa/me", form);
-      alert("Datos de la empresa actualizados");
-    } catch {
-      alert("Error al actualizar los datos");
+      await axios.put("/api/empresa/me", form, { withCredentials: true });
+      alert("Datos actualizados correctamente");
+      router.refresh();
+    } catch (error) {
+      console.error("Error al actualizar los datos", error);
+      setError("Error al actualizar los datos. Intente nuevamente.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (loading) return <p>Cargando...</p>;
+  if (loading) return <p className="text-center py-8">Cargando datos...</p>;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 text-center">Panel de Empresa</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">Mi Empresa</h1>
 
       <form
         onSubmit={handleSubmit}
         className="space-y-4 bg-white p-6 rounded shadow"
       >
+        {error && (
+          <div className="bg-red-100 text-red-700 p-2 rounded text-center text-sm">
+            {error}
+          </div>
+        )}
+
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Nombre de la empresa
-          </label>
+          <label className="block text-sm font-medium mb-1">Nombre</label>
           <input
-            type="text"
             name="nombre"
             value={form.nombre}
             onChange={handleChange}
-            required
             className="w-full border rounded px-3 py-2"
+            required
           />
         </div>
 
@@ -110,15 +137,14 @@ export default function PanelEmpresa() {
             name="email"
             value={form.email}
             onChange={handleChange}
-            required
             className="w-full border rounded px-3 py-2"
+            required
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Teléfono</label>
           <input
-            type="text"
             name="telefono"
             value={form.telefono}
             onChange={handleChange}
@@ -129,7 +155,6 @@ export default function PanelEmpresa() {
         <div>
           <label className="block text-sm font-medium mb-1">Dirección</label>
           <input
-            type="text"
             name="direccion"
             value={form.direccion}
             onChange={handleChange}
@@ -175,48 +200,34 @@ export default function PanelEmpresa() {
         <div>
           <label className="block text-sm font-medium mb-1">Sitio web</label>
           <input
-            type="url"
             name="web"
             value={form.web}
             onChange={handleChange}
-            placeholder="https://www.ejemplo.com"
             className="w-full border rounded px-3 py-2"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Corriente de servicios
+            Corrientes de servicios
           </label>
-          <input
-            type="text"
-            name="corrienteServicios"
-            value={form.corrienteServicios}
+          <textarea
+            name="corrientes_de_residuos"
+            value={form.corrientes_de_residuos}
             onChange={handleChange}
-            placeholder="Corriente de servicios"
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Contraseña (nueva)
-          </label>
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder="Dejar en blanco para no cambiar"
+            placeholder="Detalle las corrientes de servicios que maneja su empresa..."
             className="w-full border rounded px-3 py-2"
           />
         </div>
 
         <button
           type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+          disabled={saving}
+          className={`w-full bg-[#1c2e39] text-white px-6 py-2 rounded transition ${
+            saving ? "opacity-50 cursor-not-allowed" : "hover:bg-[#14212f]"
+          }`}
         >
-          Guardar cambios
+          {saving ? "Guardando..." : "Guardar cambios"}
         </button>
       </form>
     </div>

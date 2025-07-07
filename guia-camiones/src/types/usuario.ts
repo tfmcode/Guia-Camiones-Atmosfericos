@@ -1,17 +1,17 @@
+import { Empresa } from "./empresa";
+
+export type Rol = "ADMIN" | "EMPRESA";
+
 export interface Usuario {
   id: number;
   nombre: string;
   email: string;
-  rol: "ADMIN" | "EMPRESA" | "USUARIO";
-  creadoEn: string;
+  password: string;
+  rol: Rol;
+  creado_en: string;
+  empresa?: Empresa;
 }
 
-// Para crear
-export type UsuarioInput = Omit<Usuario, "id" | "creadoEn"> & {
+export type UsuarioInput = Omit<Usuario, "id" | "creado_en" | "empresa"> & {
   password: string;
-};
-
-// Para editar
-export type UsuarioUpdateInput = Omit<Usuario, "id" | "creadoEn"> & {
-  password?: string;
 };

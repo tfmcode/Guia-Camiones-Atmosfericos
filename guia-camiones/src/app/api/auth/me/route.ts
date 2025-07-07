@@ -1,19 +1,39 @@
-// app/api/auth/me/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { verifyJwt } from "@/lib/auth/verify-jwt";
+import { verifyJwt } from "@/lib/auth";
+import pool from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
+  const user = token && verifyJwt(token);
 
-  if (!token) {
-    return NextResponse.json({ message: "No token" }, { status: 401 });
+  if (!user) {
+    return NextResponse.json({ message: "No autorizado" }, { status: 401 });
   }
 
   try {
-    const payload = verifyJwt(token);
-    return NextResponse.json(payload);
+    const query = `
+      SELECT id, email, nombre, rol
+      FROM usuario
+      WHERE id = $1
+    `;
+    const values = [user.id];
+
+    const { rows } = await pool.query(query, values);
+    const usuario = rows[0];
+
+    if (!usuario) {
+      return NextResponse.json(
+        { message: "Usuario no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ usuario });
   } catch (error) {
-    console.error("Token inválido:", error);
-    return NextResponse.json({ message: "Token inválido" }, { status: 401 });
+    console.error("Error al obtener usuario:", error);
+    return NextResponse.json(
+      { message: "Error al obtener usuario" },
+      { status: 500 }
+    );
   }
 }

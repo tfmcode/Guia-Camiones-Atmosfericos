@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function RegistroEmpresa() {
   const [form, setForm] = useState({
@@ -10,16 +11,17 @@ export default function RegistroEmpresa() {
     telefono: "",
     provincia: "",
     localidad: "",
-    direccion: "",
     password: "",
   });
-
   const [provincias, setProvincias] = useState<
     { id: string; nombre: string }[]
   >([]);
   const [localidades, setLocalidades] = useState<
     { id: string; nombre: string }[]
   >([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre")
@@ -45,26 +47,57 @@ export default function RegistroEmpresa() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const payload = { ...form };
+
     try {
-      await axios.post("/api/registro", form);
+      await axios.post("/api/registro", payload);
       alert("Empresa registrada exitosamente");
-    } catch {
-      alert("Error al registrar la empresa");
+      setForm({
+        nombre: "",
+        email: "",
+        telefono: "",
+        provincia: "",
+        localidad: "",
+        password: "",
+      });
+      router.push("/login");
+    } catch (error) {
+      console.error("Error al registrar la empresa:", error);
+
+      if (typeof error === "object" && error !== null && "response" in error) {
+        const mensaje = (
+          error as { response?: { data?: { mensaje?: string } } }
+        ).response?.data?.mensaje;
+        setError(mensaje || "Error inesperado. Intentá de nuevo.");
+      } else {
+        setError("Error inesperado. Intentá de nuevo.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 text-center">
+    <div className="max-w-2xl mx-auto px-4 py-10">
+      <h1 className="text-3xl font-extrabold mb-8 text-center text-[#1c2e39]">
         Registrá tu Empresa
       </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 bg-white p-6 rounded shadow"
+        className="space-y-6 bg-white p-8 rounded-xl shadow-md border border-[#1c2e39]/10"
       >
+        {error && (
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
+            {error}
+          </div>
+        )}
+
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
             Nombre de la empresa
           </label>
           <input
@@ -73,41 +106,50 @@ export default function RegistroEmpresa() {
             value={form.nombre}
             onChange={handleChange}
             required
-            className="w-full border rounded px-3 py-2"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
+          <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
+            Email
+          </label>
           <input
             type="email"
             name="email"
             value={form.email}
             onChange={handleChange}
             required
-            className="w-full border rounded px-3 py-2"
+            autoComplete="email"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Teléfono</label>
+          <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
+            Teléfono
+          </label>
           <input
             type="text"
             name="telefono"
             value={form.telefono}
             onChange={handleChange}
-            className="w-full border rounded px-3 py-2"
+            required
+            className="w-full border border-gray-300 rounded-lg px-4 py-2"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Provincia</label>
+            <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
+              Provincia
+            </label>
             <select
               name="provincia"
               value={form.provincia}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2"
             >
               <option value="">Seleccioná una provincia</option>
               {provincias.map((prov) => (
@@ -118,12 +160,15 @@ export default function RegistroEmpresa() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Localidad</label>
+            <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
+              Localidad
+            </label>
             <select
               name="localidad"
               value={form.localidad}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2"
             >
               <option value="">Seleccioná una localidad</option>
               {localidades.map((loc) => (
@@ -134,35 +179,32 @@ export default function RegistroEmpresa() {
             </select>
           </div>
         </div>
-         <div>
-          <label className="block text-sm font-medium mb-1">Direccion</label>
-          <input
-            type="text"
-            name="direccion"
-            value={form.direccion}
-            onChange={handleChange}
-            required
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Contraseña</label>
+          <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
+            Contraseña
+          </label>
           <input
             type="password"
             name="password"
             value={form.password}
             onChange={handleChange}
             required
-            className="w-full border rounded px-3 py-2"
+            autoComplete="new-password"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2"
           />
         </div>
 
         <button
           type="submit"
-          className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition"
+          disabled={loading}
+          className={`w-full font-semibold py-3 px-6 rounded-lg shadow transition duration-300 ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-[#1c2e39] text-white hover:scale-105 hover:shadow-lg"
+          }`}
         >
-          Crear cuenta
+          {loading ? "Registrando..." : "Crear cuenta"}
         </button>
       </form>
     </div>

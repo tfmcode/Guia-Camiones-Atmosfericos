@@ -13,22 +13,12 @@ export default function EmpresasAdminPage() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [empresaIdEditar, setEmpresaIdEditar] = useState<number | null>(null);
-
-  const [form, setForm] = useState<EmpresaInput>({
-    nombre: "",
-    slug: "",
-    email: "",
-    telefono: "",
-    direccion: "",
-    provincia: "",
-    localidad: "",
-    servicios: [],
-    imagenes: [],
-    destacado: false,
-    habilitado: true,
-    web: "",
-    corrienteServicios: "",
-  });
+  
+/*   
+  const [todosLosServicios, setTodosLosServicios] = useState<
+    { id: number; nombre: string }[]
+  >([]);
+ */
 
   const [provincias, setProvincias] = useState<
     { id: string; nombre: string }[]
@@ -36,12 +26,41 @@ export default function EmpresasAdminPage() {
   const [localidades, setLocalidades] = useState<
     { id: string; nombre: string }[]
   >([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [form, setForm] = useState<Omit<EmpresaInput, "slug">>({
+    nombre: "",
+    email: "",
+    telefono: "",
+    direccion: "",
+    provincia: "",
+    localidad: "",
+/*     servicios: [],
+ */    imagenes: [],
+    destacado: false,
+    habilitado: true,
+    web: "",
+    corrientes_de_residuos: "",
+  });
 
   useEffect(() => {
-    fetchEmpresas();
-    fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre")
-      .then((res) => res.json())
-      .then((data) => setProvincias(data.provincias));
+    const cargarDatos = async () => {
+      try {
+        fetchEmpresas();
+
+        const provinciasRes = await fetch(
+          "https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre"
+        );
+        const provinciasData = await provinciasRes.json();
+        setProvincias(provinciasData.provincias);
+
+      } catch (err) {
+        console.error("Error al cargar datos iniciales:", err);
+      }
+    };
+
+    cargarDatos();
   }, []);
 
   useEffect(() => {
@@ -55,9 +74,14 @@ export default function EmpresasAdminPage() {
   }, [form.provincia]);
 
   const fetchEmpresas = async () => {
-    const res = await fetch("/api/empresa/admin");
-    const data = await res.json();
-    setEmpresas(data);
+    try {
+      const res = await fetch("/api/empresa/admin");
+      const data = await res.json();
+      setEmpresas(data);
+    } catch (error) {
+      console.error("Error al cargar empresas:", error);
+      alert("Error al cargar empresas.");
+    }
   };
 
   const handleChange = (
@@ -69,59 +93,79 @@ export default function EmpresasAdminPage() {
   const abrirNuevo = () => {
     setForm({
       nombre: "",
-      slug: "",
       email: "",
       telefono: "",
       direccion: "",
       provincia: "",
       localidad: "",
-      servicios: [],
-      imagenes: [],
+/*       servicios: [],
+ */      imagenes: [],
+
       destacado: false,
       habilitado: true,
       web: "",
-      corrienteServicios: "",
+      corrientes_de_residuos: "",
     });
     setEmpresaIdEditar(null);
     setModoEdicion(false);
+    setError("");
     setModalAbierto(true);
   };
 
   const abrirEditar = (empresa: Empresa) => {
     setForm({
       nombre: empresa.nombre,
-      slug: empresa.slug,
       email: empresa.email || "",
       telefono: empresa.telefono,
       direccion: empresa.direccion,
       provincia: empresa.provincia || "",
       localidad: empresa.localidad || "",
-      servicios: empresa.servicios,
-      imagenes: empresa.imagenes,
+      imagenes: empresa.imagenes || [],
       destacado: empresa.destacado,
       habilitado: empresa.habilitado,
       web: empresa.web || "",
-      corrienteServicios: empresa.corrienteServicios || "",
+      corrientes_de_residuos: empresa.corrientes_de_residuos || "",
     });
     setEmpresaIdEditar(empresa.id);
     setModoEdicion(true);
+    setError("");
     setModalAbierto(true);
   };
 
   const guardar = async () => {
-    if (modoEdicion && empresaIdEditar !== null) {
-      await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
-    } else {
-      await axios.post("/api/empresa/admin", form);
+    if (!form.nombre.trim() || !form.telefono.trim()) {
+      setError("El nombre y teléfono son obligatorios.");
+      return;
     }
-    setModalAbierto(false);
-    fetchEmpresas();
+
+    setLoading(true);
+    try {
+      if (modoEdicion && empresaIdEditar !== null) {
+        await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
+      } else {
+        await axios.post("/api/empresa/admin", form);
+      }
+      setModalAbierto(false);
+      fetchEmpresas();
+    } catch (error) {
+      console.error("Error al guardar empresa:", error);
+      alert("Error al guardar empresa.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const eliminar = async (empresa: Empresa) => {
-    if (confirm(`¿Eliminar a ${empresa.nombre}?`)) {
+    if (!confirm(`¿Eliminar a ${empresa.nombre}?`)) return;
+    setLoading(true);
+    try {
       await axios.delete(`/api/empresa/admin/${empresa.id}`);
       fetchEmpresas();
+    } catch (error) {
+      console.error("Error al eliminar empresa:", error);
+      alert("Error al eliminar empresa.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -138,7 +182,10 @@ export default function EmpresasAdminPage() {
         <h1 className="text-2xl font-bold">Empresas</h1>
         <button
           onClick={abrirNuevo}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={loading}
+          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
           Nueva Empresa
         </button>
@@ -178,6 +225,12 @@ export default function EmpresasAdminPage() {
           }}
           className="space-y-4"
         >
+          {error && (
+            <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <FormField
             label="Nombre"
             name="nombre"
@@ -210,13 +263,13 @@ export default function EmpresasAdminPage() {
             onChange={handleChange}
           />
           <FormField
-            label="Corriente de Servicios"
-            name="corrienteServicios"
-            value={form.corrienteServicios || ""}
+            label="Corriente de Residuos"
+            name="corrientes_de_residuos"
+            value={form.corrientes_de_residuos || ""}
             onChange={handleChange}
           />
 
-          {/* Select de provincia */}
+          {/* Provincia */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Provincia
@@ -238,7 +291,7 @@ export default function EmpresasAdminPage() {
             </select>
           </div>
 
-          {/* Select de localidad */}
+          {/* Localidad */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Localidad
@@ -258,6 +311,32 @@ export default function EmpresasAdminPage() {
             </select>
           </div>
 
+          {/* Servicios */}
+      {/*     <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Servicios ofrecidos
+            </label>
+            <select
+              multiple
+              name="servicios"
+              value={form.servicios.map(String)}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, (opt) =>
+                  parseInt(opt.value)
+                );
+                setForm({ ...form, servicios: selected });
+              }}
+              className="block w-full border border-gray-300 rounded px-3 py-2 h-32"
+            >
+              {todosLosServicios.map((servicio) => (
+                <option key={servicio.id} value={servicio.id}>
+                  {servicio.nombre}
+                </option>
+              ))}
+            </select>
+          </div> */}
+
+          {/* Checkboxes */}
           <div className="flex items-center space-x-4">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -269,7 +348,6 @@ export default function EmpresasAdminPage() {
               />
               Destacada
             </label>
-
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -285,9 +363,12 @@ export default function EmpresasAdminPage() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              disabled={loading}
+              className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
-              Guardar
+              {loading ? "Guardando..." : "Guardar"}
             </button>
           </div>
         </form>

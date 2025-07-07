@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET!;
+import bcrypt from "bcryptjs";
+import { signJwt } from "@/lib/auth";
+import { cookies } from "next/headers";
+import pool from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -11,55 +10,58 @@ export async function POST(req: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { message: "Email y contraseña son requeridos" },
+        { mensaje: "Faltan credenciales" },
         { status: 400 }
       );
     }
 
-    const usuario = await prisma.usuario.findUnique({ where: { email } });
-    if (!usuario) {
+    // Buscar el usuario por email
+    const query = "SELECT * FROM usuario WHERE email = $1";
+    const values = [email];
+
+    const { rows } = await pool.query(query, values);
+    const usuario = rows[0];
+
+    if (!usuario || !usuario.password) {
       return NextResponse.json(
-        { message: "Usuario no encontrado" },
+        { mensaje: "Email o contraseña incorrectos" },
         { status: 401 }
       );
     }
 
-    const valid = await bcrypt.compare(password, usuario.password);
-    if (!valid) {
+    const passwordOk = await bcrypt.compare(password, usuario.password);
+
+    if (!passwordOk) {
       return NextResponse.json(
-        { message: "Contraseña incorrecta" },
+        { mensaje: "Email o contraseña incorrectos" },
         { status: 401 }
       );
     }
 
-    const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, rol: usuario.rol },
-      JWT_SECRET,
-      { expiresIn: "2h" }
-    );
-
-    const response = NextResponse.json({
-      usuario: {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        rol: usuario.rol,
-      },
+    const token = signJwt({
+      id: usuario.id,
+      email: usuario.email,
+      rol: usuario.rol,
     });
 
-    response.cookies.set("token", token, {
+    // Guardar cookie HttpOnly
+    (await cookies()).set("token", token, {
       httpOnly: true,
       path: "/",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 2,
       secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 2,
+      sameSite: "lax",
     });
 
-    return response;
-  } catch (error) {
-    console.error("Error en login:", error);
+    // Excluir el password antes de enviar al cliente
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...usuarioSeguro } = usuario;
+
+    return NextResponse.json({ usuario: usuarioSeguro }, { status: 200 });
+  } catch (error: unknown) {
+    console.error("Login error:", error);
     return NextResponse.json(
-      { message: "Error interno del servidor" },
+      { mensaje: "Error al iniciar sesión" },
       { status: 500 }
     );
   }

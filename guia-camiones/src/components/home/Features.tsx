@@ -1,10 +1,40 @@
-import { MonitorPlay, Landmark, UserPlus, Settings2 } from "lucide-react";
+"use client";
+
+import { useEffect, useRef } from "react";
+import { Truck, ListTodo, Building2, Star } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const Features = () => {
+  const cardsRef = useRef<HTMLDivElement[]>([]);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      cardsRef.current.forEach((card, i) => {
+        gsap.from(card, {
+          opacity: 0,
+          rotateX: 10,
+          scale: 0.9,
+          duration: 0.8,
+          delay: i * 0.15,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: card,
+            start: "top 85%",
+          },
+        });
+      });
+    });
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <section className="bg-white py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 text-center mb-12">
-       BUSCADOR DE EMPRESAS Y SERVICIOS
+        BUSCADOR DE EMPRESAS Y SERVICIOS
       </h2>
 
       <p className="text-center text-gray-700 font-semibold uppercase tracking-wide mb-12">
@@ -12,69 +42,46 @@ const Features = () => {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {/* Bloque 1 */}
-        <div className="flex items-start gap-4 bg-white p-5 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300">
-          <div className="bg-red-100 text-red-600 p-3 rounded-lg">
-            <MonitorPlay className="w-6 h-6" />
+        {[
+          {
+            icon: <Truck className="w-6 h-6" />,
+            title: "Guía de operadores de residuos",
+            text: "Accedé al listado de empresas dedicadas a la gestión y recolección de residuos líquidos, fosas sépticas y pozos ciegos.",
+          },
+          {
+            icon: <ListTodo className="w-6 h-6" />,
+            title: "Guía de proveedores",
+            text: "Encontrá fabricantes y distribuidores de insumos, equipos atmosféricos, repuestos y más para tu actividad.",
+          },
+          {
+            icon: <Building2 className="w-6 h-6" />,
+            title: "Registre gratis su empresa",
+            text: "Sumá tu empresa a la guía para aumentar tu visibilidad y recibir consultas sin intermediarios.",
+          },
+          {
+            icon: <Star className="w-6 h-6" />,
+            title: "Publique un anuncio destacado",
+            text: "Posicioná tu empresa entre los primeros resultados y destacate con mayor exposición frente a la competencia.",
+          },
+        ].map((feature, i) => (
+          <div
+            key={i}
+            ref={(el) => {
+              if (el) cardsRef.current[i] = el;
+            }}
+            className="group flex items-start gap-4 bg-white p-5 rounded-lg shadow-sm transform transition duration-300 ease-in-out hover:scale-110 hover:shadow-lg"
+          >
+            <div className="bg-[#1c2e39]/10 text-[#1c2e39] p-3 rounded-lg transition-transform duration-300 group-hover:rotate-3">
+              {feature.icon}
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                {feature.title}
+              </h3>
+              <p className="text-gray-600">{feature.text}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Guía de operadores de residuos
-            </h3>
-            <p className="text-gray-600">
-              Accedé al listado de empresas dedicadas a la gestión y recolección
-              de residuos líquidos, fosas sépticas y pozos ciegos.
-            </p>
-          </div>
-        </div>
-
-        {/* Bloque 2 */}
-        <div className="flex items-start gap-4 bg-white p-5 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300">
-          <div className="bg-red-100 text-red-600 p-3 rounded-lg">
-            <Landmark className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Guía de proveedores
-            </h3>
-            <p className="text-gray-600">
-              Encontrá fabricantes y distribuidores de insumos, equipos
-              atmosféricos, repuestos y más para tu actividad.
-            </p>
-          </div>
-        </div>
-
-        {/* Bloque 3 */}
-        <div className="flex items-start gap-4 bg-white p-5 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300">
-          <div className="bg-red-100 text-red-600 p-3 rounded-lg">
-            <UserPlus className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Registre gratis su empresa
-            </h3>
-            <p className="text-gray-600">
-              Sumá tu empresa a la guía para aumentar tu visibilidad y recibir
-              consultas sin intermediarios.
-            </p>
-          </div>
-        </div>
-
-        {/* Bloque 4 */}
-        <div className="flex items-start gap-4 bg-white p-5 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300">
-          <div className="bg-red-100 text-red-600 p-3 rounded-lg">
-            <Settings2 className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Publique un anuncio destacado
-            </h3>
-            <p className="text-gray-600">
-              Posicioná tu empresa entre los primeros resultados y destacate con
-              mayor exposición frente a la competencia.
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
     </section>
   );

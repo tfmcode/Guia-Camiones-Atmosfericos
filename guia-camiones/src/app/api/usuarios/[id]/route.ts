@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyJwt } from "@/lib/auth/verify-jwt";
-import { usuarioUpdateSchema } from "@/schemas/usuarioSchemas";
+import { verifyJwt } from "@/lib/auth";
+import { cookies } from "next/headers";
 import bcrypt from "bcrypt";
-import { z } from "zod";
+import pool from "@/lib/db";
 
 export async function PUT(req: NextRequest) {
-  const token = req.cookies.get("token")?.value;
+  const tokenStore = await cookies();
+  const token = tokenStore.get("token")?.value;
   const user = token && verifyJwt(token);
 
   if (!user || user.rol !== "ADMIN") {
@@ -14,49 +14,80 @@ export async function PUT(req: NextRequest) {
   }
 
   const id = req.nextUrl.pathname.split("/").pop();
-  if (!id) {
+  if (!id || isNaN(Number(id))) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
 
-  const body = await req.json();
-  const parse = usuarioUpdateSchema.safeParse(body);
+  try {
+    const body = await req.json();
+    const { nombre, email, rol, password } = body;
 
-  if (!parse.success) {
+    if (!nombre || !email || !rol) {
+      return NextResponse.json(
+        { message: "Nombre, email y rol son obligatorios" },
+        { status: 400 }
+      );
+    }
+
+    let hashedPassword;
+    if (password && password.trim() !== "") {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    const query = `
+      UPDATE usuario
+      SET nombre = $1, email = $2, rol = $3${
+        hashedPassword ? ", password = $4" : ""
+      }
+      WHERE id = $${hashedPassword ? 5 : 4}
+      RETURNING id, nombre, email, rol, creado_en
+    `;
+
+    const values = hashedPassword
+      ? [nombre.trim(), email.trim(), rol, hashedPassword, Number(id)]
+      : [nombre.trim(), email.trim(), rol, Number(id)];
+
+    const { rows } = await pool.query(query, values);
+    const actualizado = rows[0];
+
+    if (!actualizado) {
+      return NextResponse.json(
+        { message: "Usuario no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    // ✅ Si se actualiza a EMPRESA, crear en tabla empresa si no existe
+    if (rol === "EMPRESA") {
+      const existeEmpresaQuery = "SELECT id FROM empresa WHERE usuario_id = $1";
+      const existeEmpresa = await pool.query(existeEmpresaQuery, [Number(id)]);
+
+      if (existeEmpresa.rows.length === 0) {
+        const insertEmpresaQuery = `
+          INSERT INTO empresa (nombre, email, usuario_id, habilitado, destacado)
+          VALUES ($1, $2, $3, true, false)
+        `;
+        await pool.query(insertEmpresaQuery, [
+          nombre.trim(),
+          email.trim(),
+          Number(id),
+        ]);
+      }
+    }
+
+    return NextResponse.json(actualizado);
+  } catch (error) {
+    console.error("Error al actualizar usuario:", error);
     return NextResponse.json(
-      { errors: parse.error.flatten().fieldErrors },
-      { status: 400 }
+      { message: "Error al actualizar usuario" },
+      { status: 500 }
     );
   }
-
-  const { password, ...rest } = parse.data;
-  const dataToUpdate: Omit<z.infer<typeof usuarioUpdateSchema>, "password"> & {
-    password?: string;
-  } = { ...rest };
-
-  if (password) {
-    const hashed = await bcrypt.hash(password, 10);
-    dataToUpdate.password = hashed;
-  }
-
-  const actualizado = await prisma.usuario.update({
-    where: { id: Number(id) },
-    data: dataToUpdate,
-  });
-
-  // Eliminamos manualmente el password en lugar de usar destructuring
-  const sanitizado = {
-    id: actualizado.id,
-    nombre: actualizado.nombre,
-    email: actualizado.email,
-    rol: actualizado.rol,
-    creadoEn: actualizado.creadoEn,
-  };
-
-  return NextResponse.json(sanitizado);
 }
 
 export async function DELETE(req: NextRequest) {
-  const token = req.cookies.get("token")?.value;
+  const tokenStore = await cookies();
+  const token = tokenStore.get("token")?.value;
   const user = token && verifyJwt(token);
 
   if (!user || user.rol !== "ADMIN") {
@@ -64,13 +95,29 @@ export async function DELETE(req: NextRequest) {
   }
 
   const id = req.nextUrl.pathname.split("/").pop();
-  if (!id) {
+  if (!id || isNaN(Number(id))) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
 
-  await prisma.usuario.delete({
-    where: { id: Number(id) },
-  });
+  try {
+    // Primero eliminar en la tabla empresa si existe para mantener consistencia
+    await pool.query("DELETE FROM empresa WHERE usuario_id = $1", [Number(id)]);
 
-  return NextResponse.json({ message: "Usuario eliminado" });
+    const deleteQuery = "DELETE FROM usuario WHERE id = $1 RETURNING id";
+    const { rows } = await pool.query(deleteQuery, [Number(id)]);
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { message: "Usuario no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ message: "Usuario eliminado" });
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
+    return NextResponse.json(
+      { message: "Error al eliminar usuario" },
+      { status: 500 }
+    );
+  }
 }

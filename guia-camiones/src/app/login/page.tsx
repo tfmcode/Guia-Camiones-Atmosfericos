@@ -1,60 +1,70 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // para JWT en cookies
         body: JSON.stringify({ email, password }),
-        credentials: "include", // ← Asegura que guarde las cookies
       });
 
+      setLoading(false);
+
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Error al iniciar sesión");
+        try {
+          const data = await res.json();
+          setError(data.mensaje || "Credenciales inválidas");
+        } catch {
+          setError("Error al procesar la respuesta del servidor");
+        }
         return;
       }
 
       const { usuario } = await res.json();
 
-      // 🔥 Reemplazamos router.push por una recarga que asegura que el contexto se actualice
       if (usuario?.rol === "ADMIN") {
-        window.location.href = "/panel/admin";
+        router.push("/panel/admin");
       } else if (usuario?.rol === "EMPRESA") {
-        window.location.href = "/panel/empresa";
+        router.push("/panel/empresa");
       } else {
-        window.location.href = "/";
+        router.push("/");
       }
     } catch {
+      setLoading(false);
       setError("Error inesperado. Intentá de nuevo.");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#f6f8fb] px-4">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-md bg-white rounded-2xl shadow-lg p-10 space-y-6"
       >
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-zinc-800">Iniciar sesión</h2>
+          <h2 className="text-2xl font-bold text-[#172a56]">Iniciar sesión</h2>
           <p className="text-sm text-zinc-500 mt-1">
             Accedé a tu panel de empresa o administración
           </p>
         </div>
 
         {error && (
-          <div className="bg-rose-100 text-rose-700 px-4 py-2 rounded text-sm text-center">
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
             {error}
           </div>
         )}
@@ -67,8 +77,9 @@ const Login = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
+            autoComplete="email"
             required
+            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#172a56] text-sm"
           />
         </div>
 
@@ -80,16 +91,22 @@ const Login = () => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
+            autoComplete="current-password"
             required
+            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#172a56] text-sm"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full bg-rose-600 text-white font-semibold py-2.5 rounded-md hover:bg-rose-700 transition-all shadow-sm text-sm"
+          disabled={loading}
+          className={`w-full font-semibold py-2.5 rounded-md shadow-sm text-sm transition-all ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-[#172a56] text-white hover:bg-[#101d3e]"
+          }`}
         >
-          Entrar
+          {loading ? "Cargando..." : "Entrar"}
         </button>
       </form>
     </div>

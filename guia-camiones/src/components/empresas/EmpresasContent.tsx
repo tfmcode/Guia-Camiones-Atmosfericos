@@ -62,7 +62,7 @@ export default function EmpresasContent() {
       : true;
     const matchServicio = filtro.servicio
       ? empresa.servicios?.some((s) =>
-          s.toLowerCase().includes(filtro.servicio.toLowerCase())
+          s.nombre.toLowerCase().includes(filtro.servicio.toLowerCase())
         )
       : true;
     const matchDestacadas = soloDestacadas ? empresa.destacado : true;
@@ -95,14 +95,14 @@ export default function EmpresasContent() {
 
   return (
     <div className="p-6 space-y-12">
-      <h1 className="text-3xl font-bold text-gray-800 text-center">
+      <h1 className="text-3xl font-bold text-[#172a56] text-center">
         Empresas Registradas
       </h1>
 
       {/* Filtros */}
       <div className="bg-white p-6 rounded-xl shadow ring-1 ring-gray-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[#172a56] mb-1">
             Provincia
           </label>
           <select
@@ -110,7 +110,7 @@ export default function EmpresasContent() {
             onChange={(e) =>
               actualizarQuery({ provincia: e.target.value, pagina: "1" })
             }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
           >
             <option value="">Seleccioná una provincia</option>
             {provincias.map((prov) => (
@@ -122,7 +122,7 @@ export default function EmpresasContent() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[#172a56] mb-1">
             Localidad
           </label>
           <select
@@ -130,7 +130,7 @@ export default function EmpresasContent() {
             onChange={(e) =>
               actualizarQuery({ localidad: e.target.value, pagina: "1" })
             }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
           >
             <option value="">Seleccioná una localidad</option>
             {localidades.map((loc) => (
@@ -142,7 +142,7 @@ export default function EmpresasContent() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[#172a56] mb-1">
             Servicio
           </label>
           <input
@@ -152,12 +152,12 @@ export default function EmpresasContent() {
             onChange={(e) =>
               actualizarQuery({ servicio: e.target.value, pagina: "1" })
             }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[#172a56] mb-1">
             Ordenar por
           </label>
           <select
@@ -165,9 +165,10 @@ export default function EmpresasContent() {
             onChange={(e) =>
               actualizarQuery({ orden: e.target.value, pagina: "1" })
             }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
           >
             <option value="destacadas">Destacadas primero</option>
+            <option value="nombre">Nombre A-Z</option>
           </select>
         </div>
 
@@ -181,8 +182,8 @@ export default function EmpresasContent() {
             }
             className={`w-full px-3 py-2 rounded-full text-sm font-semibold transition shadow-sm focus:outline-none ${
               soloDestacadas
-                ? "bg-rose-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-[#172a56] text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-[#e4e7f2]"
             }`}
           >
             {soloDestacadas ? "Ver todas" : "Solo destacadas"}
@@ -209,7 +210,7 @@ export default function EmpresasContent() {
                 onClick={() =>
                   actualizarQuery({ pagina: String(paginaActual - 1) })
                 }
-                className="flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-gray-100 text-sm"
+                className="flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-[#e4e7f2] text-sm"
               >
                 <ChevronLeft size={16} />
                 Anterior
@@ -222,8 +223,8 @@ export default function EmpresasContent() {
                 onClick={() => actualizarQuery({ pagina: String(i + 1) })}
                 className={`px-4 py-2 rounded-md text-sm font-medium border transition ${
                   paginaActual === i + 1
-                    ? "bg-rose-600 text-white border-rose-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                    ? "bg-[#172a56] text-white border-[#172a56]"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-[#e4e7f2]"
                 }`}
               >
                 {i + 1}
@@ -235,7 +236,7 @@ export default function EmpresasContent() {
                 onClick={() =>
                   actualizarQuery({ pagina: String(paginaActual + 1) })
                 }
-                className="flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-gray-100 text-sm"
+                className="flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-[#e4e7f2] text-sm"
               >
                 Siguiente
                 <ChevronRight size={16} />

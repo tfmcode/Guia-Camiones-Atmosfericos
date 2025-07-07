@@ -24,12 +24,10 @@ export default function DataTable<T extends { nombre?: string }>({
 }: Props<T>) {
   const hasActions = !!onEdit || !!onDelete;
 
-  // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const totalPages = Math.ceil(data.length / rowsPerPage);
 
-  // Buscador por nombre
   const [busqueda, setBusqueda] = useState("");
 
   const datosFiltrados = data.filter((item) =>
