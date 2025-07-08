@@ -3,7 +3,7 @@ import Image from "next/image";
 import type { Empresa } from "@/types/empresa";
 import { getEmpresaBySlug } from "@/lib/api/empresaService";
 
-export async function generateStaticParams() {
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_SITE_URL}/api/empresa/public`,
     { next: { revalidate: 60 } }
@@ -18,9 +18,9 @@ export async function generateStaticParams() {
 export default async function EmpresaDetail({
   params,
 }: {
-  params: { slug: string };
-}) {
-  const slug = params.slug;
+  params: Promise<{ slug: string }>;
+}): Promise<React.JSX.Element> {
+  const { slug } = await params;
 
   const empresa = await getEmpresaBySlug(slug);
   if (!empresa) return notFound();
