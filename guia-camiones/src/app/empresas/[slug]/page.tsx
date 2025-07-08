@@ -3,7 +3,6 @@ import Image from "next/image";
 import type { Empresa } from "@/types/empresa";
 import { getEmpresaBySlug } from "@/lib/api/empresaService";
 
-// ✅ Generar slugs dinámicos correctamente
 export async function generateStaticParams() {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_SITE_URL}/api/empresa/public`,
@@ -28,7 +27,6 @@ export default async function EmpresaDetail({
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-12 space-y-12">
-      {/* Título */}
       <div className="border-b pb-6 sm:pb-8 text-center sm:text-left">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-900">
           {empresa.nombre}
@@ -38,7 +36,6 @@ export default async function EmpresaDetail({
         </p>
       </div>
 
-      {/* Card de Información */}
       <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow ring-1 ring-zinc-100 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div>
@@ -78,7 +75,6 @@ export default async function EmpresaDetail({
         </div>
       </div>
 
-      {/* Galería de imágenes */}
       {empresa.imagenes?.length > 0 ? (
         <div className="space-y-4 sm:space-y-6">
           <h2 className="text-lg sm:text-xl font-semibold text-zinc-800 text-center sm:text-left">
