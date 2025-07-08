@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: { slug: string } }
-) {
-  const slug = params.slug; // ✅ Forma correcta para Next 15
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<NextResponse> {
+  const { slug } = await params;
 
   try {
-    // Obtener la empresa por slug
     const empresaQuery = `
       SELECT 
         id, slug, nombre, email, telefono, direccion, provincia,
@@ -24,7 +23,6 @@ export async function GET(
       return NextResponse.json({ message: "No encontrado" }, { status: 404 });
     }
 
-    // Obtener servicios asociados a la empresa
     const serviciosQuery = `
       SELECT s.id, s.nombre
       FROM empresa_servicio es
