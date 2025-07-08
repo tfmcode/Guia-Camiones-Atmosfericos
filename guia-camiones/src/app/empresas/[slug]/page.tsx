@@ -3,7 +3,12 @@ import Image from "next/image";
 import type { Empresa } from "@/types/empresa";
 import { getEmpresaBySlug } from "@/lib/api/empresaService";
 
+// ✅ Corregido: evita fallar en producción si el backend aún no está corriendo
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  if (process.env.NODE_ENV === "production") {
+    return []; // Evita el fetch mientras configuras producción
+  }
+
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_SITE_URL}/api/empresa/public`,
     { next: { revalidate: 60 } }
@@ -18,9 +23,9 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 export default async function EmpresaDetail({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }): Promise<React.JSX.Element> {
-  const { slug } = await params;
+  const { slug } = params;
 
   const empresa = await getEmpresaBySlug(slug);
   if (!empresa) return notFound();
