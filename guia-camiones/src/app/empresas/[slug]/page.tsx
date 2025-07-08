@@ -1,11 +1,12 @@
 // app/empresas/[slug]/page.tsx
+
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Empresa } from "@/types/empresa";
 import { getEmpresaBySlug } from "@/lib/api/empresaService";
-import type { JSX } from "react";
+import {JSX} from "react";
 
-// 1. Generar rutas estáticas con slugs existentes
+// ✅ Generar slugs estáticos (debe permanecer aquí)
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_SITE_URL}/api/empresa/public`,
@@ -15,21 +16,20 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
   return empresas.map((e) => ({ slug: e.slug }));
 }
 
-// 2. Componente de página principal para cada slug
+// ✅ Página principal
 export default async function Page({
   params,
 }: {
-  params: { slug: string } | Promise<{ slug: string }>;
+  params: { slug: string };
 }): Promise<JSX.Element> {
-  // Asegurarse de extraer `params` si viene como promesa
-  const { slug } = await params;
+  const { slug } = params; // ✅ SIN await
 
   const empresa = await getEmpresaBySlug(slug);
   if (!empresa || !empresa.habilitado) return notFound();
 
   return (
     <div className="max-w-6xl mx-auto px-6 pt-12 pb-16 space-y-16">
-      {/* -- Sección de encabezado -- */}
+      {/* Encabezado */}
       <div className="border-b pb-8">
         <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900">
           {empresa.nombre}
@@ -39,35 +39,21 @@ export default async function Page({
         </p>
       </div>
 
-      {/* -- Sección de detalles -- */}
+      {/* Información */}
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow ring-1 ring-zinc-100 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-            <p className="text-sm text-zinc-500 mb-1">Teléfono</p>
-            <p className="text-zinc-800 font-medium">{empresa.telefono}</p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-500 mb-1">Email</p>
-            <p className="text-zinc-800 font-medium">
-              {empresa.email || "No especificado"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-500 mb-1">Dirección</p>
-            <p className="text-zinc-800 font-medium">{empresa.direccion}</p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-500 mb-1">Provincia</p>
-            <p className="text-zinc-800 font-medium">
-              {empresa.provincia || "No definida"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-500 mb-1">Localidad</p>
-            <p className="text-zinc-800 font-medium">
-              {empresa.localidad || "No definida"}
-            </p>
-          </div>
+          {[
+            { label: "Teléfono", value: empresa.telefono },
+            { label: "Email", value: empresa.email || "No especificado" },
+            { label: "Dirección", value: empresa.direccion },
+            { label: "Provincia", value: empresa.provincia || "No definida" },
+            { label: "Localidad", value: empresa.localidad || "No definida" },
+          ].map((item, i) => (
+            <div key={i}>
+              <p className="text-sm text-zinc-500 mb-1">{item.label}</p>
+              <p className="text-zinc-800 font-medium">{item.value}</p>
+            </div>
+          ))}
           <div className="sm:col-span-2">
             <p className="text-sm text-zinc-500 mb-1">Servicios</p>
             <p className="text-zinc-800 font-medium">
@@ -79,7 +65,7 @@ export default async function Page({
         </div>
       </div>
 
-      {/* -- Galería de imágenes -- */}
+      {/* Galería */}
       {empresa.imagenes?.length > 0 ? (
         <div className="space-y-6">
           <h2 className="text-xl font-semibold text-zinc-800">
