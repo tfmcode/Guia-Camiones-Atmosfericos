@@ -2,35 +2,37 @@
 
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import type { Empresa } from "@/types/empresa";
-import { getEmpresaBySlug } from "@/lib/api/empresaService";
-import {JSX} from "react";
+import type { Servicio } from "@/types";
 
-// ✅ Generar slugs estáticos (debe permanecer aquí)
+import { getEmpresaBySlug, getEmpresas } from "@/lib/api/empresaService";
+
+// 📌 Generar rutas estáticas para desarrollo (evita fallos en producción)
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL}/api/empresa/public`,
-    { next: { revalidate: 60 } }
-  );
-  const empresas: Empresa[] = await res.json();
-  return empresas.map((e) => ({ slug: e.slug }));
+  if (process.env.NODE_ENV === "production") {
+    return [];
+  }
+
+  try {
+    const empresas = await getEmpresas();
+    return empresas.map((e) => ({ slug: e.slug }));
+  } catch (err) {
+    console.error("❌ Error en generateStaticParams:", err);
+    return [];
+  }
 }
 
-// ✅ Página principal
-export default async function Page({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<JSX.Element> {
-  const { slug } = params; // ✅ SIN await
+// 🧩 Componente de página
+export default async function EmpresaDetail(props: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await props.params;
 
   const empresa = await getEmpresaBySlug(slug);
   if (!empresa || !empresa.habilitado) return notFound();
 
   return (
-    <div className="max-w-6xl mx-auto px-6 pt-12 pb-16 space-y-16">
-      {/* Encabezado */}
-      <div className="border-b pb-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+      <div className="border-b pb-6 text-center sm:text-left">
         <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900">
           {empresa.nombre}
         </h1>
@@ -39,35 +41,56 @@ export default async function Page({
         </p>
       </div>
 
-      {/* Información */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow ring-1 ring-zinc-100 space-y-4">
+      <div className="bg-white p-6 rounded-2xl shadow space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {[
-            { label: "Teléfono", value: empresa.telefono },
-            { label: "Email", value: empresa.email || "No especificado" },
-            { label: "Dirección", value: empresa.direccion },
-            { label: "Provincia", value: empresa.provincia || "No definida" },
-            { label: "Localidad", value: empresa.localidad || "No definida" },
-          ].map((item, i) => (
-            <div key={i}>
-              <p className="text-sm text-zinc-500 mb-1">{item.label}</p>
-              <p className="text-zinc-800 font-medium">{item.value}</p>
-            </div>
-          ))}
+          <div>
+            <p className="text-sm text-zinc-500 mb-1">Teléfono</p>
+            <p className="text-zinc-800 font-medium">
+              {empresa.telefono || "No especificado"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-zinc-500 mb-1">Email</p>
+            <p className="text-zinc-800 font-medium">
+              {empresa.email || "No especificado"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-zinc-500 mb-1">Dirección</p>
+            <p className="text-zinc-800 font-medium">
+              {empresa.direccion || "No especificado"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-zinc-500 mb-1">Provincia</p>
+            <p className="text-zinc-800 font-medium">
+              {empresa.provincia || "No especificado"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-zinc-500 mb-1">Localidad</p>
+            <p className="text-zinc-800 font-medium">
+              {empresa.localidad || "No especificado"}
+            </p>
+          </div>
+
           <div className="sm:col-span-2">
             <p className="text-sm text-zinc-500 mb-1">Servicios</p>
-            <p className="text-zinc-800 font-medium">
-              {Array.isArray(empresa.servicios) && empresa.servicios.length > 0
-                ? empresa.servicios.map((s) => s.nombre).join(", ")
-                : "No especificado"}
-            </p>
+            {empresa.servicios && empresa.servicios.length > 0 ? (
+              <ul className="list-disc list-inside text-zinc-800 font-medium">
+                {empresa.servicios.map((s: Servicio) => (
+                  <li key={s.id}>{s.nombre}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-zinc-800 font-medium">No especificado</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Galería */}
-      {empresa.imagenes?.length > 0 ? (
-        <div className="space-y-6">
+      {empresa.imagenes && empresa.imagenes.length > 0 ? (
+        <section className="space-y-6">
           <h2 className="text-xl font-semibold text-zinc-800">
             Imágenes de la empresa
           </h2>
@@ -75,7 +98,7 @@ export default async function Page({
             {empresa.imagenes.map((url, i) => (
               <div
                 key={i}
-                className="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow-md ring-1 ring-zinc-200"
+                className="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow ring-1 ring-zinc-200"
               >
                 <Image
                   src={url || "/placeholder.jpg"}
@@ -88,9 +111,9 @@ export default async function Page({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       ) : (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-zinc-500 text-center">
           No hay imágenes disponibles para esta empresa.
         </p>
       )}
