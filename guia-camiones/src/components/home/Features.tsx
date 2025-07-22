@@ -45,12 +45,12 @@ const Features = () => {
         {[
           {
             icon: <Truck className="w-6 h-6" />,
-            title: "Guía de operadores de residuos",
+            title: "Operadores de residuos",
             text: "Accedé al listado de empresas dedicadas a la gestión y recolección de residuos líquidos, fosas sépticas y pozos ciegos.",
           },
           {
             icon: <ListTodo className="w-6 h-6" />,
-            title: "Guía de proveedores",
+            title: "Proveedores del Rubro",
             text: "Encontrá fabricantes y distribuidores de insumos, equipos atmosféricos, repuestos y más para tu actividad.",
           },
           {

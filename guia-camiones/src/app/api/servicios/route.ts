@@ -6,21 +6,30 @@ import pool from "@/lib/db";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q")?.toLowerCase().trim() || "";
+    const q = searchParams.get("q")?.toLowerCase().trim();
 
-    if (q.length < 2) {
-      return NextResponse.json([]);
+    let query = "";
+    let params: string[] = [];
+
+    if (q && q.length >= 2) {
+      query = `
+        SELECT id, nombre
+        FROM servicio
+        WHERE LOWER(nombre) LIKE $1
+        ORDER BY nombre ASC
+        LIMIT 10
+      `;
+      params = [`%${q}%`];
+    } else {
+      query = `
+        SELECT id, nombre
+        FROM servicio
+        ORDER BY nombre ASC
+      `;
+      params = [];
     }
 
-    const query = `
-      SELECT id, nombre
-      FROM servicio
-      WHERE LOWER(nombre) LIKE $1
-      ORDER BY nombre ASC
-      LIMIT 10
-    `;
-    const { rows: servicios } = await pool.query(query, [`%${q}%`]);
-
+    const { rows: servicios } = await pool.query(query, params);
     return NextResponse.json(servicios);
   } catch (error) {
     console.error("❌ Error al buscar servicios:", error);
