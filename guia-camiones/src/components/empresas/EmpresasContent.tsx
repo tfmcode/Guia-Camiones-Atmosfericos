@@ -11,6 +11,10 @@ export default function EmpresasContent() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [provincias, setProvincias] = useState<string[]>([]);
   const [localidades, setLocalidades] = useState<string[]>([]);
+  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>(
+    []
+  );
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -52,6 +56,15 @@ export default function EmpresasContent() {
       setLocalidades([]);
     }
   }, [filtro.provincia]);
+
+  useEffect(() => {
+    fetch("/api/servicios")
+      .then((res) => res.json())
+      .then((data) =>
+        setServiciosDisponibles(data.map((s: { nombre: string }) => s.nombre))
+      )
+      .catch((err) => console.error("Error al cargar servicios:", err));
+  }, []);
 
   const filtrar = (empresa: Empresa) => {
     const matchProvincia = filtro.provincia
@@ -145,15 +158,20 @@ export default function EmpresasContent() {
           <label className="block text-sm font-medium text-[#172a56] mb-1">
             Servicio
           </label>
-          <input
-            type="text"
-            placeholder="Ej: Desagote"
+          <select
             value={filtro.servicio}
             onChange={(e) =>
               actualizarQuery({ servicio: e.target.value, pagina: "1" })
             }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
-          />
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56] max-h-40 overflow-y-auto"
+          >
+            <option value="">Seleccioná un servicio</option>
+            {serviciosDisponibles.map((nombre) => (
+              <option key={nombre} value={nombre}>
+                {nombre}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
