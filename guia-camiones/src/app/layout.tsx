@@ -1,8 +1,10 @@
 import React from "react";
 import "./globals.css";
 import type { Metadata } from "next";
+import Script from "next/script";
 import LayoutContent from "@/components/layout/LayoutContent";
 import { AuthProvider } from "@/context/AuthContext";
+import WhatsappFloating from "@/components/ui/WhatsappFloating";
 
 export const metadata: Metadata = {
   title: "Guía de Camiones Atmosféricos",
@@ -31,8 +33,28 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Guía C.A." />
+
+        <Script id="gtm-head" strategy="afterInteractive">
+          {`
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NLHP8RM7');
+  `}
+        </Script>
       </head>
       <body className="bg-white text-gray-900">
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-NLHP8RM7"
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          ></iframe>
+        </noscript>
+
+        <WhatsappFloating />
         <AuthProvider>
           <LayoutContent>{children}</LayoutContent>
         </AuthProvider>

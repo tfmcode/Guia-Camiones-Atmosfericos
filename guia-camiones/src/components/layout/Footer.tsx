@@ -85,8 +85,15 @@ const Footer = () => {
                         item.includes("Mail")
                           ? "mailto:hola@guía-atmosfericos.com"
                           : item.includes("Tel")
-                          ? "tel:1155646135"
+                          ? "https://wa.me/5491155646135?text=" +
+                            encodeURIComponent(
+                              "Hola! Estoy viendo su web y quiero hacer una consulta."
+                            )
                           : "#"
+                      }
+                      target={item.includes("Tel") ? "_blank" : undefined}
+                      rel={
+                        item.includes("Tel") ? "noopener noreferrer" : undefined
                       }
                       className="text-gray-600 hover:text-cyan-700 transition"
                     >
