@@ -5,9 +5,13 @@ import axios from "axios";
 import { EmpresaInput } from "@/types";
 import { useRouter } from "next/navigation";
 import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
+import { ImageUploader } from "@/components/ui/ImageUploader";
 
 export default function PanelEmpresa() {
-  const [form, setForm] = useState<EmpresaInput & { servicios: number[] }>({
+  const [form, setForm] = useState<
+    EmpresaInput & { servicios: number[]; id?: number }
+  >({
+    id: undefined,
     nombre: "",
     email: "",
     telefono: "",
@@ -39,11 +43,13 @@ export default function PanelEmpresa() {
         const res = await axios.get<{
           empresa: EmpresaInput & {
             servicios: { id: number; nombre: string }[];
+            id: number;
           };
         }>("/api/empresa/me", { withCredentials: true });
         const { empresa } = res.data;
 
         setForm({
+          id: empresa.id,
           nombre: empresa.nombre ?? "",
           email: empresa.email ?? "",
           telefono: empresa.telefono ?? "",
@@ -236,6 +242,19 @@ export default function PanelEmpresa() {
           serviciosSeleccionados={form.servicios}
           onChange={(ids) => setForm((prev) => ({ ...prev, servicios: ids }))}
         />
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Imágenes</label>
+          {form.id && (
+            <ImageUploader
+              empresaId={form.id}
+              imagenes={form.imagenes}
+              onChange={(nuevas: string[]) =>
+                setForm((prev) => ({ ...prev, imagenes: nuevas }))
+              }
+            />
+          )}
+        </div>
 
         <button
           type="submit"
