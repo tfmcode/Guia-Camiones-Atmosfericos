@@ -15,6 +15,7 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "guia-atmosfericos.com",
+        port: "", // se puede omitir, pero es más explícito
         pathname: "/uploads/empresa/**",
       },
     ],

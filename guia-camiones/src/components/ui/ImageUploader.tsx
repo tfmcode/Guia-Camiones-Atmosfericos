@@ -17,6 +17,10 @@ export const ImageUploader: React.FC<Props> = ({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Usamos la URL base en producción
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://guia-atmosfericos.com";
+
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -37,7 +41,12 @@ export const ImageUploader: React.FC<Props> = ({
       if (!res.ok) throw new Error("Error al subir imagen");
 
       const data = await res.json();
-      const nuevasUrls = data.urls as string[]; // Estas deben ser rutas relativas tipo: "/uploads/empresa/203/archivo.png"
+
+      // Convertimos URLs relativas en absolutas
+      const nuevasUrls = (data.urls as string[]).map(
+        (url) => `${baseUrl}${url}`
+      );
+
       onChange([...imagenes, ...nuevasUrls]);
     } catch (error) {
       console.error("Error al subir imagen:", error);
@@ -60,7 +69,7 @@ export const ImageUploader: React.FC<Props> = ({
             className="relative w-32 h-32 border rounded overflow-hidden"
           >
             <Image
-              src={src} // sin dominio
+              src={src}
               alt="Imagen empresa"
               fill
               style={{ objectFit: "cover" }}
