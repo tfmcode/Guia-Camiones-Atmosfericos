@@ -1,4 +1,3 @@
-// src/app/api/empresa/admin/[id]/upload/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth";
 
@@ -6,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -15,7 +14,7 @@ export async function POST(
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
 
-  const id = params.id;
+  const id = context.params.id;
   if (!id || isNaN(Number(id))) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
