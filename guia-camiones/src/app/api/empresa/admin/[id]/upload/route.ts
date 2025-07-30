@@ -5,8 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
 
@@ -14,7 +16,6 @@ export async function POST(
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
 
-  const id = context.params.id;
   if (!id || isNaN(Number(id))) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
