@@ -17,6 +17,11 @@ export const ImageUploader: React.FC<Props> = ({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const baseURL =
+    process.env.NODE_ENV === "production"
+      ? "https://guia-atmosfericos.com"
+      : "";
+
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -50,7 +55,6 @@ export const ImageUploader: React.FC<Props> = ({
 
   const handleEliminar = (url: string) => {
     onChange(imagenes.filter((img) => img !== url));
-    // (Opcional) acá podrías también hacer un DELETE al backend si querés eliminar el archivo físico
   };
 
   return (
@@ -62,10 +66,10 @@ export const ImageUploader: React.FC<Props> = ({
             className="relative w-32 h-32 border rounded overflow-hidden"
           >
             <Image
-              src={src}
+              src={`${baseURL}${src}`}
               alt="Imagen empresa"
-              layout="fill"
-              objectFit="cover"
+              fill
+              style={{ objectFit: "cover" }}
             />
             <button
               type="button"
