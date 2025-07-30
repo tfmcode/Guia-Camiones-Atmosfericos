@@ -5,6 +5,7 @@ import DataTable from "@/components/ui/DataTable";
 import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
 import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
+import { ImageUploader } from "@/components/ui/ImageUploader";
 import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
@@ -355,6 +356,14 @@ export default function EmpresasAdminPage() {
               serviciosSeleccionados={form.servicios}
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
+
+            {empresaIdEditar && (
+              <ImageUploader
+                empresaId={empresaIdEditar}
+                imagenes={form.imagenes}
+                onChange={(urls) => setForm({ ...form, imagenes: urls })}
+              />
+            )}
 
             <div className="flex items-center space-x-4">
               <label className="flex items-center gap-2 text-sm">

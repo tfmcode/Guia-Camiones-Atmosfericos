@@ -45,7 +45,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/* ✅ PUT: actualizar datos de la empresa logueada y devolver actualizada */
 export async function PUT(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -56,7 +55,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { password, servicios, ...rest } = body;
+    const { password, servicios, imagenes, ...rest } = body;
 
     if (!rest.nombre || !rest.telefono || !rest.direccion) {
       return NextResponse.json(
@@ -93,6 +92,13 @@ export async function PUT(req: NextRequest) {
     for (const [key, value] of Object.entries(updateData)) {
       setClauses.push(`${key} = $${idx}`);
       values.push(value);
+      idx++;
+    }
+
+    // Agregar campo imágenes si viene en el body
+    if (Array.isArray(imagenes)) {
+      setClauses.push(`imagenes = $${idx}`);
+      values.push(imagenes);
       idx++;
     }
 
