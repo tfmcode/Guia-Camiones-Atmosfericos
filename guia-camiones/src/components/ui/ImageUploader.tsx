@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import Image from "next/image";
 
 interface Props {
   empresaId: number;
@@ -17,7 +16,6 @@ export const ImageUploader: React.FC<Props> = ({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Usamos la URL base en producción
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://guia-atmosfericos.com";
 
@@ -68,11 +66,10 @@ export const ImageUploader: React.FC<Props> = ({
             key={src}
             className="relative w-32 h-32 border rounded overflow-hidden"
           >
-            <Image
+            <img
               src={src}
               alt="Imagen empresa"
-              fill
-              style={{ objectFit: "cover" }}
+              className="w-full h-full object-cover"
             />
             <button
               type="button"
