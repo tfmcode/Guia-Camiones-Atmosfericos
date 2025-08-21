@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest) {
       web,
       corrientes_de_residuos,
       usuarioId,
-      servicios = [], // ✅ capturamos los servicios
+      servicios, // ✅ No ponemos valor por defecto aquí
     } = body;
 
     if (!nombre || !telefono || !direccion) {
@@ -89,8 +89,10 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // ✅ Actualizar servicios asociados
-    if (Array.isArray(servicios)) {
+    // ✅ CAMBIO PRINCIPAL: Solo actualizar servicios si se enviaron explícitamente
+    if (servicios !== undefined && Array.isArray(servicios)) {
+      console.log(`🔄 Actualizando servicios para empresa ${id}:`, servicios);
+
       // 1) Borrar servicios anteriores
       await pool.query("DELETE FROM empresa_servicio WHERE empresa_id = $1", [
         Number(id),
@@ -109,6 +111,10 @@ export async function PUT(req: NextRequest) {
         `;
         await pool.query(insertQuery, insertParams);
       }
+    } else {
+      console.log(
+        `⏭️ No se enviaron servicios, manteniendo los actuales para empresa ${id}`
+      );
     }
 
     return NextResponse.json(actualizada);

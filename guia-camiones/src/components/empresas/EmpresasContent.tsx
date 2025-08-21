@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import EmpresaCard from "@/components/empresas/EmpresasCard";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { Empresa } from "@/types/empresa";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
 
 export default function EmpresasContent() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -14,6 +14,7 @@ export default function EmpresasContent() {
   const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>(
     []
   );
+  const [showFilters, setShowFilters] = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -106,163 +107,340 @@ export default function EmpresasContent() {
     router.push(`/empresas?${query.toString()}`);
   };
 
-  return (
-    <div className="p-6 space-y-12">
-      <h1 className="text-3xl font-bold text-[#172a56] text-center">
-        Empresas Registradas
-      </h1>
+  const limpiarFiltros = () => {
+    router.push("/empresas");
+  };
 
-      {/* Filtros */}
-      <div className="bg-white p-6 rounded-xl shadow ring-1 ring-gray-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-[#172a56] mb-1">
-            Provincia
-          </label>
-          <select
-            value={filtro.provincia}
-            onChange={(e) =>
-              actualizarQuery({ provincia: e.target.value, pagina: "1" })
-            }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
-          >
-            <option value="">Seleccioná una provincia</option>
-            {provincias.map((prov) => (
-              <option key={prov} value={prov}>
-                {prov}
-              </option>
-            ))}
-          </select>
+  const filtrosActivos =
+    filtro.provincia || filtro.localidad || filtro.servicio || soloDestacadas;
+
+  // Paginación móvil simplificada
+  const renderPaginationMobile = () => {
+    if (totalPaginas <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-between sm:hidden px-4">
+        <button
+          onClick={() =>
+            actualizarQuery({ pagina: String(Math.max(1, paginaActual - 1)) })
+          }
+          disabled={paginaActual === 1}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            paginaActual === 1
+              ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+              : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+          }`}
+        >
+          <ChevronLeft size={16} />
+          Anterior
+        </button>
+
+        <div className="flex items-center gap-1 text-sm font-medium text-gray-600">
+          <span>{paginaActual}</span>
+          <span>de</span>
+          <span>{totalPaginas}</span>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-[#172a56] mb-1">
-            Localidad
-          </label>
-          <select
-            value={filtro.localidad}
-            onChange={(e) =>
-              actualizarQuery({ localidad: e.target.value, pagina: "1" })
-            }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
-          >
-            <option value="">Seleccioná una localidad</option>
-            {localidades.map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
-          </select>
-        </div>
+        <button
+          onClick={() =>
+            actualizarQuery({
+              pagina: String(Math.min(totalPaginas, paginaActual + 1)),
+            })
+          }
+          disabled={paginaActual === totalPaginas}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            paginaActual === totalPaginas
+              ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+              : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+          }`}
+        >
+          Siguiente
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    );
+  };
 
-        <div>
-          <label className="block text-sm font-medium text-[#172a56] mb-1">
-            Servicio
-          </label>
-          <select
-            value={filtro.servicio}
-            onChange={(e) =>
-              actualizarQuery({ servicio: e.target.value, pagina: "1" })
-            }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56] max-h-40 overflow-y-auto"
-          >
-            <option value="">Seleccioná un servicio</option>
-            {serviciosDisponibles.map((nombre) => (
-              <option key={nombre} value={nombre}>
-                {nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+  // Paginación desktop
+  const renderPaginationDesktop = () => {
+    if (totalPaginas <= 1) return null;
 
-        <div>
-          <label className="block text-sm font-medium text-[#172a56] mb-1">
-            Ordenar por
-          </label>
-          <select
-            value={orden}
-            onChange={(e) =>
-              actualizarQuery({ orden: e.target.value, pagina: "1" })
-            }
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#172a56]"
-          >
-            <option value="destacadas">Destacadas primero</option>
-            <option value="nombre">Nombre A-Z</option>
-          </select>
-        </div>
+    const pagesToShow = [];
+    const maxPagesToShow = 5;
+    const startPage = Math.max(
+      1,
+      paginaActual - Math.floor(maxPagesToShow / 2)
+    );
+    const endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
 
-        <div className="flex items-end">
+    for (let i = startPage; i <= endPage; i++) {
+      pagesToShow.push(i);
+    }
+
+    return (
+      <div className="hidden sm:flex justify-center items-center gap-2 flex-wrap">
+        {paginaActual > 1 && (
           <button
             onClick={() =>
-              actualizarQuery({
-                soloDestacadas: soloDestacadas ? "" : "true",
-                pagina: "1",
-              })
+              actualizarQuery({ pagina: String(paginaActual - 1) })
             }
-            className={`w-full px-3 py-2 rounded-full text-sm font-semibold transition shadow-sm focus:outline-none ${
-              soloDestacadas
-                ? "bg-[#172a56] text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-[#e4e7f2]"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium text-gray-700 transition"
+          >
+            <ChevronLeft size={16} />
+            Anterior
+          </button>
+        )}
+
+        {startPage > 1 && (
+          <>
+            <button
+              onClick={() => actualizarQuery({ pagina: "1" })}
+              className="px-4 py-2 rounded-lg text-sm font-medium border transition bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="px-2 text-gray-400">...</span>}
+          </>
+        )}
+
+        {pagesToShow.map((page) => (
+          <button
+            key={page}
+            onClick={() => actualizarQuery({ pagina: String(page) })}
+            className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+              paginaActual === page
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
             }`}
           >
-            {soloDestacadas ? "Ver todas" : "Solo destacadas"}
+            {page}
           </button>
+        ))}
+
+        {endPage < totalPaginas && (
+          <>
+            {endPage < totalPaginas - 1 && (
+              <span className="px-2 text-gray-400">...</span>
+            )}
+            <button
+              onClick={() => actualizarQuery({ pagina: String(totalPaginas) })}
+              className="px-4 py-2 rounded-lg text-sm font-medium border transition bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            >
+              {totalPaginas}
+            </button>
+          </>
+        )}
+
+        {paginaActual < totalPaginas && (
+          <button
+            onClick={() =>
+              actualizarQuery({ pagina: String(paginaActual + 1) })
+            }
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium text-gray-700 transition"
+          >
+            Siguiente
+            <ChevronRight size={16} />
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 py-6 sm:px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Empresas Registradas
+              </h1>
+              <p className="text-gray-600 text-sm sm:text-base mt-1">
+                {empresasFiltradas.length} empresa
+                {empresasFiltradas.length !== 1 ? "s" : ""} encontrada
+                {empresasFiltradas.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {/* Botón filtros móvil */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
+            >
+              <Filter size={16} />
+              Filtros
+              {filtrosActivos && (
+                <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Resultados */}
-      {empresasPaginadas.length === 0 ? (
-        <p className="text-gray-500 text-center">
-          No se encontraron empresas con esos filtros.
-        </p>
-      ) : (
-        <>
-          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 mt-4">
-            {empresasPaginadas.map((empresa) => (
-              <EmpresaCard key={empresa.id} empresa={empresa} />
-            ))}
-          </div>
-
-          <div className="flex justify-center gap-2 mt-10 flex-wrap">
-            {paginaActual > 1 && (
-              <button
-                onClick={() =>
-                  actualizarQuery({ pagina: String(paginaActual - 1) })
-                }
-                className="flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-[#e4e7f2] text-sm"
+      {/* Filtros */}
+      <div
+        className={`bg-white border-b border-gray-200 ${
+          showFilters || "hidden sm:block"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Provincia
+              </label>
+              <select
+                value={filtro.provincia}
+                onChange={(e) => {
+                  actualizarQuery({ provincia: e.target.value, pagina: "1" });
+                  setShowFilters(false);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <ChevronLeft size={16} />
-                Anterior
-              </button>
-            )}
+                <option value="">Todas las provincias</option>
+                {provincias.map((prov) => (
+                  <option key={prov} value={prov}>
+                    {prov}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {Array.from({ length: totalPaginas }, (_, i) => (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Localidad
+              </label>
+              <select
+                value={filtro.localidad}
+                onChange={(e) => {
+                  actualizarQuery({ localidad: e.target.value, pagina: "1" });
+                  setShowFilters(false);
+                }}
+                disabled={!filtro.provincia}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">Todas las localidades</option>
+                {localidades.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Servicio
+              </label>
+              <select
+                value={filtro.servicio}
+                onChange={(e) => {
+                  actualizarQuery({ servicio: e.target.value, pagina: "1" });
+                  setShowFilters(false);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos los servicios</option>
+                {serviciosDisponibles.map((nombre) => (
+                  <option key={nombre} value={nombre}>
+                    {nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ordenar por
+              </label>
+              <select
+                value={orden}
+                onChange={(e) => {
+                  actualizarQuery({ orden: e.target.value, pagina: "1" });
+                  setShowFilters(false);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="destacadas">Destacadas primero</option>
+                <option value="nombre">Nombre A-Z</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-2">
               <button
-                key={i}
-                onClick={() => actualizarQuery({ pagina: String(i + 1) })}
-                className={`px-4 py-2 rounded-md text-sm font-medium border transition ${
-                  paginaActual === i + 1
-                    ? "bg-[#172a56] text-white border-[#172a56]"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-[#e4e7f2]"
+                onClick={() => {
+                  actualizarQuery({
+                    soloDestacadas: soloDestacadas ? "" : "true",
+                    pagina: "1",
+                  });
+                  setShowFilters(false);
+                }}
+                className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  soloDestacadas
+                    ? "bg-amber-500 text-white hover:bg-amber-600"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                {i + 1}
+                {soloDestacadas ? "Ver todas" : "Solo destacadas"}
               </button>
-            ))}
 
-            {paginaActual < totalPaginas && (
+              {filtrosActivos && (
+                <button
+                  onClick={() => {
+                    limpiarFiltros();
+                    setShowFilters(false);
+                  }}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition flex items-center justify-center gap-2"
+                >
+                  <X size={14} />
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contenido principal */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Resultados */}
+        {empresasPaginadas.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-gray-400 text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-medium text-gray-900 mb-2">
+              No se encontraron empresas
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Intentá ajustar los filtros para obtener más resultados
+            </p>
+            {filtrosActivos && (
               <button
-                onClick={() =>
-                  actualizarQuery({ pagina: String(paginaActual + 1) })
-                }
-                className="flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-[#e4e7f2] text-sm"
+                onClick={limpiarFiltros}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
               >
-                Siguiente
-                <ChevronRight size={16} />
+                <X size={16} />
+                Limpiar filtros
               </button>
             )}
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            {/* Grid de empresas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {empresasPaginadas.map((empresa) => (
+                <EmpresaCard key={empresa.id} empresa={empresa} />
+              ))}
+            </div>
+
+            {/* Paginación */}
+            <div className="space-y-4">
+              {renderPaginationMobile()}
+              {renderPaginationDesktop()}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

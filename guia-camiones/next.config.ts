@@ -18,6 +18,12 @@ const nextConfig = {
         port: "", // se puede omitir, pero es más explícito
         pathname: "/uploads/empresa/**",
       },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "3000",
+        pathname: "/uploads/**",
+      },
     ],
   },
 };
