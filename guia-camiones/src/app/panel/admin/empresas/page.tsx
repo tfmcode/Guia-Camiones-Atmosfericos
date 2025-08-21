@@ -10,6 +10,9 @@ import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
 
+// Extender Empresa para que sea compatible con DataTable
+type EmpresaWithIndex = Empresa & Record<string, unknown>;
+
 export default function EmpresasAdminPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [usuariosEmpresa, setUsuariosEmpresa] = useState<
@@ -26,6 +29,7 @@ export default function EmpresasAdminPage() {
     { id: string; nombre: string }[]
   >([]);
   const [loading, setLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState<
@@ -63,7 +67,7 @@ export default function EmpresasAdminPage() {
         const usuariosRes = await fetch("/api/usuarios?rol=EMPRESA");
         const usuariosData = await usuariosRes.json();
         setUsuariosEmpresa(usuariosData);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Error al cargar datos iniciales:", err);
       }
     };
@@ -82,18 +86,21 @@ export default function EmpresasAdminPage() {
   }, [form.provincia]);
 
   const fetchEmpresas = async () => {
+    setTableLoading(true);
     try {
       const res = await fetch("/api/empresa/admin");
       const data = await res.json();
       setEmpresas(data);
-    } catch (error) {
-      console.error("Error al cargar empresas:", error);
-      alert("Error al cargar empresas.");
+    } catch (err: unknown) {
+      console.error("Error al cargar empresas:", err);
+      setError("Error al cargar empresas.");
+    } finally {
+      setTableLoading(false);
     }
   };
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -120,7 +127,10 @@ export default function EmpresasAdminPage() {
     setModalAbierto(true);
   };
 
-  const abrirEditar = (empresa: Empresa) => {
+  const abrirEditar = (empresa: EmpresaWithIndex) => {
+    console.log("Abriendo empresa para editar:", empresa); // Debug
+    console.log("Imágenes de la empresa:", empresa.imagenes); // Debug
+
     setForm({
       nombre: empresa.nombre,
       email: empresa.email || "",
@@ -152,32 +162,92 @@ export default function EmpresasAdminPage() {
       return;
     }
 
+    console.log("Guardando empresa con imagenes:", form.imagenes); // Debug
+
     setLoading(true);
     try {
       if (modoEdicion && empresaIdEditar !== null) {
         await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
+        console.log("Empresa actualizada exitosamente"); // Debug
       } else {
-        await axios.post("/api/empresa/admin", form);
+        const response = await axios.post("/api/empresa/admin", form);
+        console.log("Empresa creada:", response.data); // Debug
+        // Si es una nueva empresa, obtener el ID de la respuesta para futuras ediciones
+        if (
+          response.data &&
+          typeof response.data === "object" &&
+          "id" in response.data
+        ) {
+          const empresaCreada = response.data as { id: number };
+          setEmpresaIdEditar(empresaCreada.id);
+          setModoEdicion(true);
+        }
       }
-      setModalAbierto(false);
+
+      // No cerrar el modal inmediatamente si es una nueva empresa (para permitir agregar imágenes)
+      if (modoEdicion) {
+        setModalAbierto(false);
+      }
+
       fetchEmpresas();
-    } catch (error) {
-      console.error("Error al guardar empresa:", error);
-      alert("Error al guardar empresa.");
+      setError("");
+    } catch (err: unknown) {
+      console.error("Error al guardar empresa:", err);
+
+      // Manejo correcto del error de Axios
+      let errorMessage = "Error al guardar empresa.";
+
+      // Verificación de tipo más robusta para errores de Axios
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data &&
+        typeof err.response.data.message === "string"
+      ) {
+        errorMessage = err.response.data.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const eliminar = async (empresa: Empresa) => {
+  const eliminar = async (empresa: EmpresaWithIndex) => {
     if (!confirm(`¿Eliminar a ${empresa.nombre}?`)) return;
     setLoading(true);
     try {
       await axios.delete(`/api/empresa/admin/${empresa.id}`);
       fetchEmpresas();
-    } catch (error) {
-      console.error("Error al eliminar empresa:", error);
-      alert("Error al eliminar empresa.");
+    } catch (err: unknown) {
+      console.error("Error al eliminar empresa:", err);
+
+      // Manejo correcto del error de Axios
+      let errorMessage = "Error al eliminar empresa.";
+
+      // Verificación de tipo más robusta para errores de Axios
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data &&
+        typeof err.response.data.message === "string"
+      ) {
+        errorMessage = err.response.data.message;
+      }
+
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -190,42 +260,89 @@ export default function EmpresasAdminPage() {
       <XCircleIcon className="h-5 w-5 text-red-500" />
     );
 
+  // Convertir empresas para compatibilidad con DataTable
+  const empresasConIndex: EmpresaWithIndex[] = empresas.map((empresa) => ({
+    ...empresa,
+  }));
+
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
         <h1 className="text-2xl font-bold">Empresas</h1>
         <button
           onClick={abrirNuevo}
-          disabled={loading}
+          disabled={loading || tableLoading}
           className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
+            loading || tableLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
           Nueva Empresa
         </button>
       </div>
 
+      {/* Mensajes globales */}
+      {error && !modalAbierto && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <p className="text-red-700 text-sm">{error}</p>
+          <button
+            onClick={() => setError("")}
+            className="ml-auto text-red-500 hover:text-red-700"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="-mx-4 sm:mx-0 overflow-x-auto">
-        <DataTable
-          data={empresas}
+        <DataTable<EmpresaWithIndex>
+          data={empresasConIndex}
+          loading={tableLoading}
+          searchKeys={["nombre", "email", "direccion", "telefono"]}
           columns={[
-            { key: "nombre", label: "Nombre" },
-            { key: "email", label: "Email" },
-            { key: "direccion", label: "Dirección" },
-            { key: "telefono", label: "Teléfono" },
+            {
+              key: "nombre",
+              label: "Nombre",
+              sortable: true,
+              width: "w-1/4",
+            },
+            {
+              key: "email",
+              label: "Email",
+              sortable: true,
+              width: "w-1/4",
+            },
+            {
+              key: "direccion",
+              label: "Dirección",
+              sortable: true,
+              width: "w-1/4",
+            },
+            {
+              key: "telefono",
+              label: "Teléfono",
+              sortable: true,
+              width: "w-1/6",
+            },
             {
               key: "destacado",
               label: "Destacada",
-              render: (empresa) => renderBooleanIcon(empresa.destacado),
+              sortable: true,
+              render: (empresa: EmpresaWithIndex) =>
+                renderBooleanIcon(empresa.destacado as boolean),
+              width: "w-1/12",
             },
             {
               key: "habilitado",
               label: "Habilitada",
-              render: (empresa) => renderBooleanIcon(empresa.habilitado),
+              sortable: true,
+              render: (empresa: EmpresaWithIndex) =>
+                renderBooleanIcon(empresa.habilitado as boolean),
+              width: "w-1/12",
             },
           ]}
           onEdit={abrirEditar}
           onDelete={eliminar}
+          pageSize={15}
         />
       </div>
 
@@ -357,13 +474,26 @@ export default function EmpresasAdminPage() {
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
 
-            {empresaIdEditar && (
-              <ImageUploader
-                empresaId={empresaIdEditar}
-                imagenes={form.imagenes}
-                onChange={(urls) => setForm({ ...form, imagenes: urls })}
-              />
-            )}
+            {/* ImageUploader - mostrar siempre, pero con diferentes comportamientos */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Imágenes de la empresa
+              </label>
+              {modoEdicion && empresaIdEditar ? (
+                <ImageUploader
+                  empresaId={empresaIdEditar}
+                  imagenes={form.imagenes}
+                  onChange={(urls) => {
+                    console.log("ImageUploader onChange:", urls); // Debug
+                    setForm({ ...form, imagenes: urls });
+                  }}
+                />
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500 text-sm">
+                  Las imágenes se pueden agregar después de crear la empresa
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center space-x-4">
               <label className="flex items-center gap-2 text-sm">
@@ -388,16 +518,39 @@ export default function EmpresasAdminPage() {
               </label>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
               <button
-                type="submit"
+                type="button"
+                onClick={() => setModalAbierto(false)}
                 disabled={loading}
-                className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
               >
-                {loading ? "Guardando..." : "Guardar"}
+                Cancelar
               </button>
+
+              {!modoEdicion && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${
+                    loading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {loading ? "Creando..." : "Crear y Continuar Editando"}
+                </button>
+              )}
+
+              {modoEdicion && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+                    loading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {loading ? "Guardando..." : "Guardar Cambios"}
+                </button>
+              )}
             </div>
           </form>
         </div>

@@ -12,7 +12,25 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { rows } = await pool.query("SELECT * FROM empresa ORDER BY id DESC");
+    // ✅ CAMBIO PRINCIPAL: Incluir servicios en el query
+    const query = `
+      SELECT 
+        e.id, e.nombre, e.slug, e.email, e.telefono, e.direccion, 
+        e.provincia, e.localidad, e.imagenes, e.destacado, e.habilitado, 
+        e.web, e.corrientes_de_residuos, e.usuario_id as "usuarioId", e.fecha_creacion,
+        COALESCE(
+          JSON_AGG(
+            json_build_object('id', s.id, 'nombre', s.nombre)
+          ) FILTER (WHERE s.id IS NOT NULL), '[]'
+        ) AS servicios
+      FROM empresa e
+      LEFT JOIN empresa_servicio es ON e.id = es.empresa_id
+      LEFT JOIN servicio s ON es.servicio_id = s.id
+      GROUP BY e.id
+      ORDER BY e.id DESC
+    `;
+
+    const { rows } = await pool.query(query);
     return NextResponse.json(rows);
   } catch (error) {
     console.error("❌ Error al obtener empresas:", error);
