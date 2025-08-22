@@ -90,6 +90,7 @@ export default function EmpresasAdminPage() {
     try {
       const res = await fetch("/api/empresa/admin");
       const data = await res.json();
+      console.log("📊 Empresas cargadas desde API:", data); // Debug
       setEmpresas(data);
     } catch (err: unknown) {
       console.error("Error al cargar empresas:", err);
@@ -128,8 +129,8 @@ export default function EmpresasAdminPage() {
   };
 
   const abrirEditar = (empresa: EmpresaWithIndex) => {
-    console.log("Abriendo empresa para editar:", empresa); // Debug
-    console.log("Imágenes de la empresa:", empresa.imagenes); // Debug
+    console.log("🔧 Abriendo empresa para editar:", empresa); // Debug
+    console.log("🖼️ Imágenes de la empresa:", empresa.imagenes); // Debug
 
     setForm({
       nombre: empresa.nombre,
@@ -156,22 +157,67 @@ export default function EmpresasAdminPage() {
     setModalAbierto(true);
   };
 
+  // ✅ FIX: Función específica para manejar cambios de imágenes
+  const handleImagenesChange = async (nuevasImagenes: string[]) => {
+    console.log("🔄 handleImagenesChange llamado con:", nuevasImagenes); // Debug
+
+    // Actualizar el estado del formulario inmediatamente
+    setForm((prev) => {
+      const nuevoForm = { ...prev, imagenes: nuevasImagenes };
+      console.log("📝 Form actualizado con nuevas imágenes:", nuevoForm); // Debug
+      return nuevoForm;
+    });
+
+    // Si estamos en modo edición, actualizar en el servidor automáticamente
+    if (modoEdicion && empresaIdEditar !== null) {
+      try {
+        console.log("🚀 Enviando actualización al servidor..."); // Debug
+
+        // Crear el payload con todas las propiedades del formulario + nuevas imágenes
+        const payload = {
+          ...form,
+          imagenes: nuevasImagenes,
+        };
+
+        console.log("📦 Payload a enviar:", payload); // Debug
+
+        const response = await axios.put(
+          `/api/empresa/admin/${empresaIdEditar}`,
+          payload
+        );
+        console.log("✅ Respuesta del servidor:", response.data); // Debug
+
+        // Refrescar la tabla para mostrar los cambios
+        await fetchEmpresas();
+
+        console.log("🔄 Tabla refrescada correctamente"); // Debug
+      } catch (error) {
+        console.error("❌ Error al actualizar imágenes en servidor:", error);
+        setError("Error al actualizar las imágenes en el servidor.");
+      }
+    }
+  };
+
   const guardar = async () => {
     if (!form.nombre.trim() || !form.telefono.trim()) {
       setError("El nombre y teléfono son obligatorios.");
       return;
     }
 
-    console.log("Guardando empresa con imagenes:", form.imagenes); // Debug
+    console.log("💾 Guardando empresa con imagenes:", form.imagenes); // Debug
 
     setLoading(true);
     try {
       if (modoEdicion && empresaIdEditar !== null) {
-        await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
-        console.log("Empresa actualizada exitosamente"); // Debug
+        const response = await axios.put(
+          `/api/empresa/admin/${empresaIdEditar}`,
+          form
+        );
+        console.log("✅ Empresa actualizada exitosamente:", response.data); // Debug
       } else {
         const response = await axios.post("/api/empresa/admin", form);
-        console.log("Empresa creada:", response.data); // Debug
+        console.log("✅ Empresa creada:", response.data); // Debug
+
         // Si es una nueva empresa, obtener el ID de la respuesta para futuras ediciones
         if (
           response.data &&
@@ -184,20 +230,20 @@ export default function EmpresasAdminPage() {
         }
       }
 
+      // ✅ FIX: Siempre refrescar la tabla después de guardar
+      await fetchEmpresas();
+
       // No cerrar el modal inmediatamente si es una nueva empresa (para permitir agregar imágenes)
       if (modoEdicion) {
         setModalAbierto(false);
       }
 
-      fetchEmpresas();
       setError("");
     } catch (err: unknown) {
-      console.error("Error al guardar empresa:", err);
+      console.error("❌ Error al guardar empresa:", err);
 
-      // Manejo correcto del error de Axios
       let errorMessage = "Error al guardar empresa.";
 
-      // Verificación de tipo más robusta para errores de Axios
       if (
         err &&
         typeof err === "object" &&
@@ -228,10 +274,8 @@ export default function EmpresasAdminPage() {
     } catch (err: unknown) {
       console.error("Error al eliminar empresa:", err);
 
-      // Manejo correcto del error de Axios
       let errorMessage = "Error al eliminar empresa.";
 
-      // Verificación de tipo más robusta para errores de Axios
       if (
         err &&
         typeof err === "object" &&
@@ -474,7 +518,7 @@ export default function EmpresasAdminPage() {
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
 
-            {/* ImageUploader - mostrar siempre, pero con diferentes comportamientos */}
+            {/* ✅ FIX: ImageUploader con el handler correcto */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Imágenes de la empresa
@@ -483,10 +527,7 @@ export default function EmpresasAdminPage() {
                 <ImageUploader
                   empresaId={empresaIdEditar}
                   imagenes={form.imagenes}
-                  onChange={(urls) => {
-                    console.log("ImageUploader onChange:", urls); // Debug
-                    setForm({ ...form, imagenes: urls });
-                  }}
+                  onChange={handleImagenesChange} // ✅ Usar la función específica
                 />
               ) : (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500 text-sm">
