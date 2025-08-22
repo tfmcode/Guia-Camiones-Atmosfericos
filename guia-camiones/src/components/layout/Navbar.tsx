@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Search, MapPin, Menu, X, ChevronDown } from "lucide-react";
 
 type Sugerencia =
   | { tipo: "provincia"; nombre: string }
@@ -24,12 +25,12 @@ const Navbar = () => {
   >([]);
   const [showSugerencias, setShowSugerencias] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sugerenciasRef = useRef<HTMLDivElement>(null);
   const serviciosRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Precargar servicios una vez al montar
   useEffect(() => {
     fetch("/api/servicios")
       .then((res) => res.json())
@@ -111,13 +112,17 @@ const Navbar = () => {
 
   const handleBuscar = () => {
     const params = new URLSearchParams();
-
     if (busqueda.trim()) params.set("servicio", busqueda.trim());
     if (provinciaSeleccionada) params.set("provincia", provinciaSeleccionada);
     if (localidadSeleccionada) params.set("localidad", localidadSeleccionada);
     params.set("pagina", "1");
-
     router.push(`/empresas?${params.toString()}`);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleBuscar();
+    }
   };
 
   const toggleMenu = () => setShowMenu((prev) => !prev);
@@ -135,6 +140,7 @@ const Navbar = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowSugerencias(false);
+        setShowMenu(false);
       }
     };
 
@@ -147,211 +153,250 @@ const Navbar = () => {
     };
   }, []);
 
+  // Cerrar menú al hacer scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (showMenu) setShowMenu(false);
+    };
+
+    if (showMenu) {
+      window.addEventListener("scroll", handleScroll);
+      return () => window.removeEventListener("scroll", handleScroll);
+    }
+  }, [showMenu]);
+
   return (
-    <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
-      <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-28 items-center justify-between gap-4">
-          {/* IZQUIERDA: Logo + texto */}
-          <div className="flex items-center gap-2 w-1/3">
-            <Link href="/" className="flex items-center gap-2">
-              <Image
-                src="/img/LogoGA.png"
-                alt="Logo de Guía Atmosféricos"
-                width={200}
-                height={100}
-              />
-              <div className="flex flex-col items-start leading-tight">
-                <span className="text-md font-bold text-[#1c2e39]">
-                  GUÍA DE CAMIONES
-                </span>
-                <span className="text-md font-bold text-[#1c2e39]">
-                  ATMOSFÉRICOS
-                </span>
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Aumenté la altura: h-24 en móvil, h-28 en tablet, h-32 en desktop */}
+        <div className="flex h-24 sm:h-28 lg:h-32 items-center justify-between">
+          {/* Logo - Mejorado para móvil */}
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
+              <div className="relative">
+                <Image
+                  src="/img/LogoGA.png"
+                  alt="Logo de Guía Atmosféricos"
+                  width={80}
+                  height={80}
+                  className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full transition-transform group-hover:scale-105 object-cover"
+                  priority
+                />
+              </div>
+              {/* Ahora el nombre es visible en todos los tamaños de pantalla */}
+              <div className="flex flex-col">
+                <div className="text-sm sm:text-base lg:text-lg font-bold text-[#1c2e39] leading-tight">
+                  <div>GUÍA DE CAMIONES</div>
+                  <div>ATMOSFÉRICOS</div>
+                </div>
               </div>
             </Link>
           </div>
 
-          {/* CENTRO: Buscadores */}
-          <div className="hidden lg:flex gap-2 items-center w-1/3 justify-center">
-            <div className="relative w-44" ref={serviciosRef}>
-              <select
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full border border-gray-300 text-sm rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1c2e39] appearance-none bg-white"
-                style={{ maxHeight: "240px", overflowY: "auto" }} // este truco hace el scroll visible en Chrome
-              >
-                <option value="">¿Qué buscás?</option>
-                {sugerenciasServicios.map((sug, idx) => (
-                  <option key={idx} value={sug.nombre}>
-                    {sug.nombre}
-                  </option>
-                ))}
-              </select>
-
-              {/* Icono flecha dropdown */}
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <div className="relative w-56" ref={sugerenciasRef}>
-              <input
-                type="text"
-                placeholder="¿Dónde?"
-                value={ubicacion}
-                onChange={handleUbicacionChange}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1c2e39]"
-              />
-              {showSugerencias && sugerencias.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-md max-h-60 overflow-auto text-sm">
-                  {sugerencias.map((sug, idx) => (
-                    <li
-                      key={idx}
-                      onClick={() => handleSelectSugerencia(sug)}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {sug.tipo === "provincia"
-                        ? sug.nombre
-                        : sug.tipo === "localidad"
-                        ? `${sug.nombre}, ${sug.provincia}`
-                        : sug.nombre}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <button
-              onClick={handleBuscar}
-              className="bg-[#1c2e39] text-white px-4 py-2 rounded text-sm hover:opacity-90 transition"
-            >
-              Buscar
-            </button>
-          </div>
-
-          {/* DERECHA: Login / Registro */}
-          <div className="flex items-center justify-end w-1/3 gap-4">
-            <div className="hidden md:flex gap-2">
-              <Link
-                href="/login"
-                className="rounded-md bg-[#1c2e39] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-              >
-                Login
-              </Link>
-              <Link
-                href="/registro"
-                className="hidden sm:inline-block rounded-md border border-[#1c2e39] px-4 py-2 text-sm font-medium text-[#1c2e39] hover:bg-[#1c2e39] hover:text-white transition"
-              >
-                Registrá tu negocio
-              </Link>
-            </div>
-
-            {/* Botón hamburguesa */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden rounded-sm bg-gray-100 p-2 text-gray-600 hover:text-gray-800"
-              aria-label="Abrir menú"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="size-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Menú móvil desplegable */}
-        {showMenu && (
-          <div className="md:hidden mt-4 flex flex-col gap-4 mb-4">
-            <div className="flex flex-col gap-2">
-              <div className="relative w-full" ref={serviciosRef}>
+          {/* Buscador Desktop */}
+          <div
+            className={`hidden lg:flex items-center transition-all duration-300 ${
+              isSearchFocused ? "scale-105" : ""
+            }`}
+          >
+            <div className="flex items-center bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-200 focus-within:border-[#1c2e39] focus-within:bg-white transition-all duration-200 shadow-sm">
+              {/* Selector de servicios */}
+              <div className="relative" ref={serviciosRef}>
                 <select
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  className="w-full border border-gray-300 text-sm rounded px-3 py-2 bg-white"
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  className="w-48 xl:w-56 bg-transparent border-none outline-none px-4 py-4 text-sm text-gray-700 cursor-pointer appearance-none"
                 >
-                  <option value="">¿Qué buscás?</option>
+                  <option value="">¿Qué servicio buscás?</option>
                   {sugerenciasServicios.map((sug, idx) => (
                     <option key={idx} value={sug.nombre}>
                       {sug.nombre}
                     </option>
                   ))}
                 </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
               </div>
 
-              <div className="relative w-full" ref={sugerenciasRef}>
+              {/* Separador */}
+              <div className="w-px h-10 bg-gray-300"></div>
+
+              {/* Input de ubicación */}
+              <div className="relative" ref={sugerenciasRef}>
+                <div className="flex items-center">
+                  <MapPin size={18} className="ml-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="¿Dónde?"
+                    value={ubicacion}
+                    onChange={handleUbicacionChange}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    onKeyPress={handleKeyPress}
+                    className="w-44 xl:w-52 bg-transparent border-none outline-none px-3 py-4 text-sm text-gray-700 placeholder-gray-500"
+                  />
+                </div>
+
+                {showSugerencias && sugerencias.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-auto z-50">
+                    {sugerencias.map((sug, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectSugerencia(sug)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-gray-400" />
+                          <span>
+                            {sug.tipo === "provincia"
+                              ? sug.nombre
+                              : sug.tipo === "localidad"
+                              ? `${sug.nombre}, ${sug.provincia}`
+                              : sug.nombre}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Botón buscar */}
+              <button
+                onClick={handleBuscar}
+                className="bg-[#1c2e39] hover:bg-[#15253a] text-white px-6 py-4 rounded-r-xl transition-colors duration-200 flex items-center gap-2 font-medium"
+              >
+                <Search size={20} />
+                <span className="hidden xl:inline">Buscar</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Botones de acción Desktop */}
+          <div className="hidden lg:flex items-center gap-3">
+            <Link
+              href="/login"
+              className="bg-gray-100 hover:bg-gray-200 text-[#1c2e39] px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            >
+              Iniciar Sesión
+            </Link>
+            <Link
+              href="/registro"
+              className="bg-[#1c2e39] hover:bg-[#15253a] text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            >
+              Registrá tu Empresa
+            </Link>
+          </div>
+
+          {/* Menú móvil toggle */}
+          <button
+            onClick={toggleMenu}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label={showMenu ? "Cerrar menú" : "Abrir menú"}
+          >
+            {showMenu ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
+        {/* Menú móvil desplegable */}
+        <div
+          className={`lg:hidden transition-all duration-300 ease-in-out ${
+            showMenu
+              ? "max-h-[500px] opacity-100 visible pb-6"
+              : "max-h-0 opacity-0 invisible overflow-hidden"
+          }`}
+        >
+          <div className="pt-4 space-y-4">
+            {/* Buscador móvil */}
+            <div className="space-y-3">
+              <div className="relative">
+                <select
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-white focus:border-[#1c2e39] focus:ring-2 focus:ring-[#1c2e39]/20 outline-none appearance-none"
+                >
+                  <option value="">¿Qué servicio buscás?</option>
+                  {sugerenciasServicios.map((sug, idx) => (
+                    <option key={idx} value={sug.nombre}>
+                      {sug.nombre}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
+
+              <div className="relative">
                 <input
                   type="text"
                   placeholder="¿Dónde?"
                   value={ubicacion}
                   onChange={handleUbicacionChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  onKeyPress={handleKeyPress}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 text-sm focus:border-[#1c2e39] focus:ring-2 focus:ring-[#1c2e39]/20 outline-none"
+                />
+                <MapPin
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 {showSugerencias && sugerencias.length > 0 && (
-                  <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-md max-h-60 overflow-auto text-sm">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-auto z-50">
                     {sugerencias.map((sug, idx) => (
-                      <li
+                      <button
                         key={idx}
                         onClick={() => handleSelectSugerencia(sug)}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors text-sm border-b border-gray-100 last:border-b-0"
                       >
-                        {sug.tipo === "provincia"
-                          ? sug.nombre
-                          : sug.tipo === "localidad"
-                          ? `${sug.nombre}, ${sug.provincia}`
-                          : sug.nombre}
-                      </li>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-gray-400" />
+                          <span>
+                            {sug.tipo === "provincia"
+                              ? sug.nombre
+                              : sug.tipo === "localidad"
+                              ? `${sug.nombre}, ${sug.provincia}`
+                              : sug.nombre}
+                          </span>
+                        </div>
+                      </button>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
 
               <button
                 onClick={handleBuscar}
-                className="bg-[#1c2e39] text-white px-4 py-2 rounded text-sm hover:opacity-90 transition"
+                className="w-full bg-[#1c2e39] text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-[#15253a] transition-colors"
               >
+                <Search size={18} />
                 Buscar
               </button>
             </div>
 
-            <div className="flex flex-col gap-2">
+            {/* Enlaces móvil */}
+            <div className="pt-4 border-t border-gray-200 space-y-3">
               <Link
                 href="/login"
-                className="block px-4 py-2 text-sm font-medium text-[#1c2e39] border border-[#1c2e39] rounded text-center"
+                onClick={() => setShowMenu(false)}
+                className="block w-full text-center py-3 border border-[#1c2e39] text-[#1c2e39] rounded-lg font-medium hover:bg-[#1c2e39] hover:text-white transition-colors"
               >
-                Login
+                Iniciar Sesión
               </Link>
               <Link
                 href="/registro"
-                className="block px-4 py-2 text-sm font-medium text-[#1c2e39] border border-[#1c2e39] rounded text-center"
+                onClick={() => setShowMenu(false)}
+                className="block w-full text-center py-3 bg-[#1c2e39] text-white rounded-lg font-medium hover:bg-[#15253a] transition-colors"
               >
-                Registrá tu negocio
+                Registrá tu Empresa
               </Link>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </header>
   );

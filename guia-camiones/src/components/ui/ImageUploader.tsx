@@ -39,12 +39,17 @@ export const ImageUploader: React.FC<Props> = ({
   const imageRef = useRef<HTMLImageElement>(null);
   const cropperRef = useRef<HTMLDivElement>(null);
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://guia-atmosfericos.com";
+  // Debug para rastrear el estado
+  console.log("ImageUploader render:", {
+    empresaId,
+    imagenes: imagenes.length,
+  });
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
+
+    console.log("Archivo seleccionado:", files[0].name);
 
     const file = files[0];
     const reader = new FileReader();
@@ -53,7 +58,6 @@ export const ImageUploader: React.FC<Props> = ({
       if (e.target?.result) {
         setCurrentImage(e.target.result as string);
         setShowCropper(true);
-        // Reset crop to center
         setTimeout(() => {
           if (imageRef.current) {
             const img = imageRef.current;
@@ -98,7 +102,6 @@ export const ImageUploader: React.FC<Props> = ({
       if (!imageRef.current) return;
 
       const imageRect = imageRef.current.getBoundingClientRect();
-
       const relativeX = e.clientX - imageRect.left;
       const relativeY = e.clientY - imageRect.top;
 
@@ -111,7 +114,6 @@ export const ImageUploader: React.FC<Props> = ({
           0,
           Math.min(relativeY - dragStart.y, imageRect.height - cropData.height)
         );
-
         setCropData((prev) => ({ ...prev, x: newX, y: newY }));
       } else if (isResizing) {
         const newWidth = Math.max(
@@ -122,8 +124,6 @@ export const ImageUploader: React.FC<Props> = ({
           50,
           Math.min(relativeY - cropData.y, imageRect.height - cropData.y)
         );
-
-        // Mantener proporción cuadrada
         const size = Math.min(newWidth, newHeight);
         setCropData((prev) => ({ ...prev, width: size, height: size }));
       }
@@ -150,34 +150,31 @@ export const ImageUploader: React.FC<Props> = ({
   const cropAndUpload = async () => {
     if (!currentImage || !imageRef.current || !canvasRef.current) return;
 
+    console.log("Iniciando crop y upload para empresa:", empresaId);
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const img = imageRef.current;
-
-    // Calcular la escala entre la imagen mostrada y la real
     const scaleX = img.naturalWidth / img.clientWidth;
     const scaleY = img.naturalHeight / img.clientHeight;
 
-    // Configurar canvas con el tamaño del recorte
     canvas.width = cropData.width * scaleX;
     canvas.height = cropData.height * scaleY;
 
-    // Dibujar la parte recortada
     ctx.drawImage(
       img,
-      cropData.x * scaleX, // sx
-      cropData.y * scaleY, // sy
-      cropData.width * scaleX, // sWidth
-      cropData.height * scaleY, // sHeight
-      0, // dx
-      0, // dy
-      canvas.width, // dWidth
-      canvas.height // dHeight
+      cropData.x * scaleX,
+      cropData.y * scaleY,
+      cropData.width * scaleX,
+      cropData.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
     );
 
-    // Convertir canvas a blob
     canvas.toBlob(
       async (blob) => {
         if (!blob) return;
@@ -187,23 +184,39 @@ export const ImageUploader: React.FC<Props> = ({
         formData.append("file", blob, "cropped-image.jpg");
 
         try {
+          console.log("Subiendo a /api/empresa/admin/" + empresaId + "/upload");
+
           const res = await fetch(`/api/empresa/admin/${empresaId}/upload`, {
             method: "POST",
             body: formData,
           });
 
-          if (!res.ok) throw new Error("Error al subir imagen");
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error("Error del servidor:", errorText);
+            throw new Error(`Error ${res.status}: ${errorText}`);
+          }
 
           const data = await res.json();
-          const nuevasUrls = (data.urls as string[]).map(
-            (url) => `${baseUrl}${url}`
-          );
+          console.log("Respuesta del servidor:", data);
 
-          onChange([...imagenes, ...nuevasUrls]);
+          // FIX: No agregar baseUrl, usar las URLs tal como vienen
+          const nuevasUrls = data.urls as string[];
+          console.log("URLs recibidas:", nuevasUrls);
+
+          // FIX: Crear el nuevo array correctamente
+          const todasLasImagenes = [...imagenes, ...nuevasUrls];
+          console.log("Array completo:", todasLasImagenes);
+
+          // FIX: Llamar onChange con el array completo
+          onChange(todasLasImagenes);
+
           setShowCropper(false);
           setCurrentImage(null);
+
+          console.log("Upload completado exitosamente");
         } catch (error) {
-          console.error("Error al subir imagen:", error);
+          console.error("Error en upload:", error);
           alert("Error al subir la imagen. Intentá de nuevo.");
         } finally {
           setUploading(false);
@@ -217,7 +230,10 @@ export const ImageUploader: React.FC<Props> = ({
 
   const handleEliminar = (url: string) => {
     if (confirm("¿Estás seguro de eliminar esta imagen?")) {
-      onChange(imagenes.filter((img) => img !== url));
+      const nuevasImagenes = imagenes.filter((img) => img !== url);
+      console.log("Eliminando imagen:", url);
+      console.log("Nuevas imágenes:", nuevasImagenes);
+      onChange(nuevasImagenes);
     }
   };
 
@@ -245,9 +261,7 @@ export const ImageUploader: React.FC<Props> = ({
             </div>
 
             <div className="space-y-6">
-              {/* Area de recorte */}
               <div className="relative inline-block border border-gray-300 rounded-lg overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={imageRef}
                   src={currentImage || ""}
@@ -256,7 +270,6 @@ export const ImageUploader: React.FC<Props> = ({
                   draggable={false}
                 />
 
-                {/* Overlay de recorte */}
                 <div
                   ref={cropperRef}
                   className="absolute border-2 border-blue-500 bg-blue-500/20 cursor-move"
@@ -268,7 +281,6 @@ export const ImageUploader: React.FC<Props> = ({
                   }}
                   onMouseDown={(e) => handleMouseDown(e, "drag")}
                 >
-                  {/* Handle de redimensión */}
                   <div
                     className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize"
                     onMouseDown={(e) => {
@@ -276,25 +288,20 @@ export const ImageUploader: React.FC<Props> = ({
                       handleMouseDown(e, "resize");
                     }}
                   />
-
-                  {/* Indicadores de esquinas */}
                   <div className="absolute top-0 left-0 w-2 h-2 bg-blue-500"></div>
                   <div className="absolute top-0 right-0 w-2 h-2 bg-blue-500"></div>
                   <div className="absolute bottom-0 left-0 w-2 h-2 bg-blue-500"></div>
                 </div>
               </div>
 
-              {/* Instrucciones */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
                   <strong>Instrucciones:</strong> Arrastrá el área azul para
                   posicionar el recorte. Arrastrá la esquina inferior derecha
-                  para cambiar el tamaño. La imagen se recortará en formato
-                  cuadrado.
+                  para cambiar el tamaño.
                 </p>
               </div>
 
-              {/* Botones */}
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setShowCropper(false)}
@@ -325,44 +332,47 @@ export const ImageUploader: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Canvas oculto para el procesamiento */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Grid de imágenes */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {/* Imágenes existentes */}
-        {imagenes.map((src, index) => (
-          <div
-            key={src}
-            className="group relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt={`Imagen ${index + 1} de la empresa`}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-            />
-            {/* Overlay con botón eliminar */}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => handleEliminar(src)}
-                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transform hover:scale-110 transition-all duration-200"
-                title="Eliminar imagen"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {/* Indicador de imagen principal */}
-            {index === 0 && (
-              <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-                Principal
+        {imagenes.map((src, index) => {
+          console.log("Renderizando imagen:", src); // Debug cada imagen
+          return (
+            <div
+              key={`${src}-${index}`} // FIX: Key más única
+              className="group relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <img
+                src={src}
+                alt={`Imagen ${index + 1} de la empresa`}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                onError={(e) => {
+                  console.error("Error cargando imagen:", src);
+                  e.currentTarget.style.display = "none";
+                }}
+                onLoad={() => {
+                  console.log("Imagen cargada correctamente:", src);
+                }}
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => handleEliminar(src)}
+                  className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transform hover:scale-110 transition-all duration-200"
+                  title="Eliminar imagen"
+                >
+                  <X size={16} />
+                </button>
               </div>
-            )}
-          </div>
-        ))}
+              {index === 0 && (
+                <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                  Principal
+                </div>
+              )}
+            </div>
+          );
+        })}
 
-        {/* Botón para agregar nueva imagen */}
         <button
           type="button"
           onClick={handleClickUpload}
@@ -382,7 +392,6 @@ export const ImageUploader: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Input oculto */}
       <input
         type="file"
         accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -392,7 +401,6 @@ export const ImageUploader: React.FC<Props> = ({
         className="hidden"
       />
 
-      {/* Información adicional */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -401,10 +409,7 @@ export const ImageUploader: React.FC<Props> = ({
           <div className="text-sm text-blue-800 space-y-1">
             <p className="font-medium">Consejos para mejores resultados:</p>
             <ul className="text-blue-700 space-y-1 text-xs">
-              <li>
-                • La primera imagen será la principal (se mostrará en el
-                listado)
-              </li>
+              <li>• La primera imagen será la principal</li>
               <li>• Podés recortar y ajustar cada imagen antes de subirla</li>
               <li>• Formatos soportados: JPG, PNG, WebP</li>
               <li>• Las imágenes se optimizan automáticamente</li>
