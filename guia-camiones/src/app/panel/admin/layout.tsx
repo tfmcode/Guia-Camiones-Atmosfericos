@@ -13,7 +13,6 @@ import {
   Users,
   Building2,
   Settings,
-  BarChart3,
   Eye,
   ChevronRight,
   AlertCircle,
@@ -81,13 +80,7 @@ export default function AdminLayout({
       icon: Building2,
       exact: false,
     },
-    {
-      label: "Estadísticas",
-      href: "/panel/admin/estadisticas",
-      icon: BarChart3,
-      exact: false,
-      disabled: true,
-    },
+
     {
       label: "Configuración",
       href: "/panel/admin/configuracion",

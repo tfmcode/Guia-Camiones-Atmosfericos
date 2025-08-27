@@ -75,7 +75,7 @@ const Hero = () => {
             className="inline-block w-full max-w-xs sm:w-auto text-white font-semibold px-6 py-3 rounded-full shadow-md transition duration-300 hover:scale-105 hover:shadow-lg"
             style={{ background: "#1c2e39" }}
           >
-            Buscar Servicio
+            Buscar Empresa
           </Link>
         </div>
       </div>

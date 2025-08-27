@@ -14,7 +14,7 @@ const WhatsappFloating: React.FC = () => {
       rel="noopener noreferrer"
       title="Chatear por WhatsApp"
       aria-label="Abrir conversación por WhatsApp"
-      className="fixed bottom-4 left-4 z-50"
+      className="fixed bottom-4 right-4 z-50"
     >
       <Image
         src="/WhatsApp.svg"
