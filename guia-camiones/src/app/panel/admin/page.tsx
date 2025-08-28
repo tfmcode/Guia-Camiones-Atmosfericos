@@ -27,9 +27,9 @@ interface DashboardStats {
   totalUsuarios: number;
   totalAdmins: number;
   totalEmpresaUsers: number;
-  empresasSemana: number; // <-- Añadido para corregir el error
-  empresasHoy: number; // <-- Añadido para corregir el error de empresasHoy
-  empresasMes?: number; // <-- Opcional, si también usas empresasMes más abajo
+  empresasSemana: number;
+  empresasHoy: number;
+  empresasMes?: number;
   topProvincias: Array<{
     provincia: string;
     count: number;
@@ -52,6 +52,12 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [mounted, setMounted] = useState(false); // ✅ Para evitar hidratación
+
+  // ✅ Evitar problemas de hidratación
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchStats = async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
@@ -133,14 +139,15 @@ export default function AdminDashboardPage() {
 
         <div className="space-y-2">
           <div className="flex items-end gap-2">
-            <p className="text-2xl font-bold text-gray-900">
-              {loading ? (
+            {/* ✅ FIX: Usar div en lugar de p para evitar nesting inválido */}
+            <div className="text-2xl font-bold text-gray-900">
+              {!mounted || loading ? (
                 <div className="w-12 h-8 bg-gray-200 rounded animate-pulse" />
               ) : (
                 value.toLocaleString()
               )}
-            </p>
-            {trend && !loading && (
+            </div>
+            {trend && mounted && !loading && (
               <div
                 className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
                   trend.isPositive
@@ -173,6 +180,20 @@ export default function AdminDashboardPage() {
     };
     return icons[iconName] || Building2;
   };
+
+  // ✅ No renderizar hasta que esté mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">
+            Cargando panel de administrador...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -425,16 +446,6 @@ export default function AdminDashboardPage() {
                     </div>
                   );
                 })}
-
-                <div className="pt-4 border-t border-gray-200">
-                  <Link
-                    href="/panel/admin/actividad"
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                  >
-                    Ver toda la actividad
-                    <ArrowRight size={14} />
-                  </Link>
-                </div>
               </div>
             ) : (
               <div className="text-center py-8">
@@ -491,7 +502,7 @@ export default function AdminDashboardPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Este mes</span>
                 <span className="font-semibold text-purple-600">
-                  +{stats.empresasMes}
+                  +{stats.empresasMes || 0}
                 </span>
               </div>
             </div>

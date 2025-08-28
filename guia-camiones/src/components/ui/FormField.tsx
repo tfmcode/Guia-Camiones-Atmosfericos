@@ -6,7 +6,7 @@ import { Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
 interface Props {
   label: string;
   name: string;
-  value: string;
+  value: string | null | undefined; // ✅ Permitir null y undefined
   onChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -45,6 +45,9 @@ export default function FormField({
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
 
+  // ✅ FIX: Convertir null/undefined a string vacía para evitar el warning
+  const safeValue = value ?? "";
+
   const isPassword = type === "password";
   const isTextarea = type === "textarea";
   const isSelect = type === "select";
@@ -73,7 +76,7 @@ export default function FormField({
         <select
           id={name}
           name={name}
-          value={value}
+          value={safeValue}
           onChange={onChange}
           disabled={disabled}
           className={baseInputStyles}
@@ -99,7 +102,7 @@ export default function FormField({
           <textarea
             id={name}
             name={name}
-            value={value}
+            value={safeValue}
             onChange={onChange}
             placeholder={placeholder}
             rows={rows}
@@ -112,7 +115,7 @@ export default function FormField({
           />
           {showCharCount && maxLength && (
             <div className="absolute bottom-3 right-3 text-xs text-gray-500 bg-white px-1">
-              {value.length}/{maxLength}
+              {safeValue.length}/{maxLength}
             </div>
           )}
         </div>
@@ -125,7 +128,7 @@ export default function FormField({
           id={name}
           name={name}
           type={isPassword ? (showPassword ? "text" : "password") : type}
-          value={value}
+          value={safeValue}
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
@@ -149,7 +152,7 @@ export default function FormField({
 
         {showCharCount && maxLength && !isPassword && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 bg-white px-1">
-            {value.length}/{maxLength}
+            {safeValue.length}/{maxLength}
           </div>
         )}
       </div>

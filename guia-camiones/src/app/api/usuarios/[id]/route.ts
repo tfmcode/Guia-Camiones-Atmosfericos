@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import bcrypt from "bcrypt";
+import { generarSlug } from "@/lib/slugify"; // ✅ Importar la función de slug
 import pool from "@/lib/db";
 
 export async function PUT(req: NextRequest) {
@@ -63,15 +64,21 @@ export async function PUT(req: NextRequest) {
       const existeEmpresa = await pool.query(existeEmpresaQuery, [Number(id)]);
 
       if (existeEmpresa.rows.length === 0) {
+        // ✅ FIX: Generar slug correctamente
+        const slug = generarSlug(nombre.trim());
+
         const insertEmpresaQuery = `
-          INSERT INTO empresa (nombre, email, usuario_id, habilitado, destacado)
-          VALUES ($1, $2, $3, true, false)
+          INSERT INTO empresa (nombre, slug, email, usuario_id, habilitado, destacado)
+          VALUES ($1, $2, $3, $4, true, false)
         `;
         await pool.query(insertEmpresaQuery, [
           nombre.trim(),
+          slug, // ✅ Incluir el slug generado
           email.trim(),
           Number(id),
         ]);
+
+        console.log(`✅ Empresa creada automáticamente con slug: ${slug}`);
       }
     }
 

@@ -1,16 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LogoutButton from "@/components/layout/LogoutButton";
 import Link from "next/link";
-import {
-  Building2,
-  Menu,
-  X,
-  Home,
-} from "lucide-react";
+import { Building2, Menu, X, Home, AlertCircle } from "lucide-react";
 
 export default function EmpresaLayout({
   children,
@@ -19,7 +14,29 @@ export default function EmpresaLayout({
 }) {
   const { usuario, empresa, loading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // ✅ Evitar problemas de hidratación
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ✅ Protección de rutas mejorada
+  useEffect(() => {
+    if (mounted && !loading) {
+      if (!usuario) {
+        router.push("/login");
+        return;
+      }
+
+      if (usuario.rol !== "EMPRESA") {
+        router.push("/unauthorized");
+        return;
+      }
+    }
+  }, [usuario, loading, mounted, router]);
 
   // Cerrar sidebar en navegación (mobile)
   useEffect(() => {
@@ -42,7 +59,8 @@ export default function EmpresaLayout({
     }
   }, [sidebarOpen]);
 
-  if (loading) {
+  // ✅ Loading state mejorado
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -50,6 +68,29 @@ export default function EmpresaLayout({
           <p className="text-gray-600 font-medium">
             Cargando panel de empresa...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Verificación adicional de autorización
+  if (!usuario || usuario.rol !== "EMPRESA") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle size={48} className="text-blue-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Acceso requerido
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Necesitás una cuenta de empresa para acceder a esta sección.
+          </p>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Iniciar sesión
+          </button>
         </div>
       </div>
     );
@@ -88,8 +129,6 @@ export default function EmpresaLayout({
             </p>
           </div>
         </div>
-
-  
       </div>
 
       {/* Navegación */}

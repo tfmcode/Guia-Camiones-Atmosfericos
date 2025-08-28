@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth"; // ✅ Importar el hook
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const router = useRouter();
+  const { checkAuth } = useAuth(); // ✅ Obtener la función checkAuth
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +40,10 @@ const Login = () => {
 
       const { usuario } = await res.json();
 
+      // ✅ Actualizar el estado del AuthContext después del login exitoso
+      checkAuth();
+
+      // Redirigir según el rol
       if (usuario?.rol === "ADMIN") {
         router.push("/panel/admin");
       } else if (usuario?.rol === "EMPRESA") {

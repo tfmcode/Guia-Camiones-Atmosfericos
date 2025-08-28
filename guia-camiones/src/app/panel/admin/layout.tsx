@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LogoutButton from "@/components/layout/LogoutButton";
 import Link from "next/link";
@@ -25,7 +25,29 @@ export default function AdminLayout({
 }) {
   const { usuario, loading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // ✅ Evitar problemas de hidratación
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ✅ Protección de rutas mejorada
+  useEffect(() => {
+    if (mounted && !loading) {
+      if (!usuario) {
+        router.push("/login");
+        return;
+      }
+
+      if (usuario.rol !== "ADMIN") {
+        router.push("/unauthorized");
+        return;
+      }
+    }
+  }, [usuario, loading, mounted, router]);
 
   // Cerrar sidebar en navegación (mobile)
   useEffect(() => {
@@ -48,7 +70,8 @@ export default function AdminLayout({
     }
   }, [sidebarOpen]);
 
-  if (loading) {
+  // ✅ Loading state mejorado
+  if (!mounted || loading || !usuario) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -56,6 +79,29 @@ export default function AdminLayout({
           <p className="text-gray-600 font-medium">
             Cargando panel de administrador...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Verificación adicional de autorización
+  if (usuario.rol !== "ADMIN") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Acceso no autorizado
+          </h3>
+          <p className="text-gray-600 mb-4">
+            No tenés permisos para acceder a esta sección.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Volver al inicio
+          </button>
         </div>
       </div>
     );
@@ -80,7 +126,6 @@ export default function AdminLayout({
       icon: Building2,
       exact: false,
     },
-
     {
       label: "Configuración",
       href: "/panel/admin/configuracion",

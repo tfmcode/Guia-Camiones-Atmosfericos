@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
 import { verifyJwt } from "@/lib/auth";
+import { generarSlug } from "@/lib/slugify"; // ✅ Importar función de slug
 import pool from "@/lib/db";
 
 export async function GET() {
@@ -75,17 +76,24 @@ export async function POST(req: Request) {
     const { rows } = await pool.query(insertQuery, values);
     const nuevoUsuario = rows[0];
 
-    // Si el rol es EMPRESA, crear automáticamente en tabla empresa
+    // ✅ FIX: Si el rol es EMPRESA, crear automáticamente en tabla empresa CON SLUG
     if (rol === "EMPRESA") {
+      const slug = generarSlug(nombre.trim()); // ✅ Generar slug correctamente
+
       const insertEmpresaQuery = `
-        INSERT INTO empresa (nombre, email, usuario_id, habilitado, destacado)
-        VALUES ($1, $2, $3, true, false)
+        INSERT INTO empresa (nombre, slug, email, usuario_id, habilitado, destacado)
+        VALUES ($1, $2, $3, $4, true, false)
       `;
       await pool.query(insertEmpresaQuery, [
         nombre.trim(),
+        slug, // ✅ Incluir el slug generado
         email.trim(),
         nuevoUsuario.id,
       ]);
+
+      console.log(
+        `✅ Empresa creada automáticamente con slug: ${slug} para usuario: ${nuevoUsuario.id}`
+      );
     }
 
     return NextResponse.json(nuevoUsuario, { status: 201 });
