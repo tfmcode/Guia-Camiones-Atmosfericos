@@ -14,9 +14,9 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } } // 👈 tipo inline obligatorio
+  { params }: { params: Promise<{ id: string }> } // 👈 CAMBIO: Promise<{ id: string }>
 ) {
-  const id = params.id;
+  const { id } = await params; // 👈 CAMBIO: await params
 
   // cookies() es Promise en Next 15
   const cookieStore = await cookies();
