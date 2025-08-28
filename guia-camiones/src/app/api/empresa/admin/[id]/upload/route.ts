@@ -1,4 +1,3 @@
-// src/app/api/empresa/admin/[id]/upload/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyJwt } from "@/lib/auth";
@@ -7,18 +6,19 @@ import fs from "fs/promises";
 
 export const dynamic = "force-dynamic";
 
-const BASE = process.env.UPLOADS_DIR || "/var/www/guia/uploads";
-const PUBLIC_BASE = process.env.UPLOADS_BASE_URL || "/uploads";
+const BASE = process.env.UPLOADS_DIR ?? "/var/www/guia/uploads";
+const PUBLIC_BASE = process.env.UPLOADS_BASE_URL ?? "/uploads";
 
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-type Ctx = { params: { id: string } };
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } } // 👈 tipo inline obligatorio
+) {
+  const id = params.id;
 
-export async function POST(req: Request, { params }: Ctx) {
-  const { id } = params;
-
-  // 👇 cookies() es Promise, por eso el await:
+  // cookies() es Promise en Next 15
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -30,7 +30,7 @@ export async function POST(req: Request, { params }: Ctx) {
   ) {
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
-  if (!id || isNaN(Number(id))) {
+  if (!id || Number.isNaN(Number(id))) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
 
@@ -59,16 +59,15 @@ export async function POST(req: Request, { params }: Ctx) {
       );
     }
 
-    const nameNoExt = file.name
-      .split(".")
-      .slice(0, -1)
-      .join(".")
-      .replace(/\s+/g, "-")
-      .replace(/[^a-zA-Z0-9-]/g, "");
+    const baseName =
+      file.name
+        .replace(/\.[^.]+$/, "")
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zA-Z0-9-]/g, "") || "img";
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const filename = `${nameNoExt || "img"}-${Date.now()}.${ext}`;
+    const filename = `${baseName}-${Date.now()}.${ext}`;
 
-    // sin slash inicial para que el alias de nginx /uploads/ resuelva bien
+    // sin slash inicial; Nginx resuelve /uploads/ vía alias a /var/www/guia/uploads
     const relative = path.join("empresa", String(id), filename);
     const target = path.join(BASE, relative);
 
