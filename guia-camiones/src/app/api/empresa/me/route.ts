@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth";
 import bcrypt from "bcryptjs";
-import { generarSlug } from "@/lib/slugify"; // ✅ AGREGADO: Importar función de slug
+import { generarSlug } from "@/lib/slugify";
 import pool from "@/lib/db";
 
 export async function GET(req: NextRequest) {
@@ -36,7 +36,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ✅ AGREGADO: Headers para evitar caché
     return NextResponse.json(
       { empresa },
       {
@@ -75,7 +74,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // ✅ CAMBIO: Obtener datos actuales de la empresa para comparar
+    // ✅ Obtener datos actuales de la empresa para comparar
     const empresaQuery =
       "SELECT id, nombre, slug FROM empresa WHERE usuario_id = $1";
     const { rows } = await pool.query(empresaQuery, [user.id]);
@@ -95,7 +94,10 @@ export async function PUT(req: NextRequest) {
       user.id
     );
 
+    // ✅ FIX: Construir objeto de actualización con TODOS los campos
     const updateData: Record<string, unknown> = {};
+
+    // Procesar todos los campos recibidos
     Object.entries(rest).forEach(([key, value]) => {
       if (typeof value === "string") {
         updateData[key] = value.trim();
@@ -104,24 +106,43 @@ export async function PUT(req: NextRequest) {
       }
     });
 
-    // ✅ CAMBIO: Generar nuevo slug si cambió el nombre
+    // ✅ FIX: Solo generar nuevo slug si cambió el nombre
     let nuevoSlug = empresa.slug; // Mantener slug actual por defecto
     if (updateData.nombre && updateData.nombre !== empresa.nombre) {
       nuevoSlug = generarSlug(updateData.nombre as string);
-      updateData.slug = nuevoSlug;
       console.log("📝 Nombre cambió, nuevo slug generado:", nuevoSlug);
+    } else {
+      console.log("🔄 Nombre sin cambios, manteniendo slug:", nuevoSlug);
     }
 
-    // Construir dinámicamente el query de actualización
+    // ✅ FIX CRÍTICO: Asegurar que el slug SIEMPRE se incluye en la actualización
+    updateData.slug = nuevoSlug;
+
+    // ✅ FIX: Construir query dinámico incluyendo TODOS los campos necesarios
+    const fieldsToUpdate = [
+      "nombre",
+      "email",
+      "telefono",
+      "direccion",
+      "provincia",
+      "localidad",
+      "web",
+      "corrientes_de_residuos",
+      "slug",
+    ];
+
     const setClauses = [];
     const values = [];
     let idx = 1;
 
-    for (const [key, value] of Object.entries(updateData)) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(value);
-      idx++;
-    }
+    // ✅ FIX: Incluir TODOS los campos relevantes, no solo los "cambiados"
+    fieldsToUpdate.forEach((field) => {
+      if (field in updateData) {
+        setClauses.push(`${field} = $${idx}`);
+        values.push(updateData[field]);
+        idx++;
+      }
+    });
 
     // Agregar campo imágenes si viene en el body
     if (Array.isArray(imagenes)) {
@@ -131,21 +152,26 @@ export async function PUT(req: NextRequest) {
       console.log("🖼️ Actualizando imágenes:", imagenes.length, "archivos");
     }
 
-    // ✅ CAMBIO: Solo actualizar si hay cambios
+    // ✅ FIX CRÍTICO: Ejecutar actualización SIEMPRE (no condicional)
     if (setClauses.length > 0) {
       const updateQuery = `UPDATE empresa SET ${setClauses.join(
         ", "
-      )} WHERE id = $${idx} RETURNING slug`;
+      )} WHERE id = $${idx} RETURNING slug, nombre`;
       values.push(empresa.id);
 
       console.log("🚀 Ejecutando actualización de empresa...");
+      console.log("📝 Campos a actualizar:", setClauses);
+      console.log("🔍 Valores (primeros 5):", values.slice(0, 5));
+
       const updateResult = await pool.query(updateQuery, values);
       const empresaActualizada = updateResult.rows[0];
 
-      console.log(
-        "✅ Empresa actualizada, slug actual:",
-        empresaActualizada?.slug
-      );
+      console.log("✅ Empresa actualizada:", {
+        nombre: empresaActualizada?.nombre,
+        slug: empresaActualizada?.slug,
+      });
+    } else {
+      console.warn("⚠️ No hay campos para actualizar - esto NO debería pasar");
     }
 
     // Actualizar contraseña si corresponde
@@ -158,7 +184,7 @@ export async function PUT(req: NextRequest) {
       console.log("🔐 Contraseña actualizada");
     }
 
-    // ✅ CAMBIO: Actualizar servicios de forma más robusta
+    // ✅ Actualizar servicios de forma más robusta
     if (Array.isArray(servicios)) {
       console.log("🔧 Actualizando servicios:", servicios);
 
@@ -187,7 +213,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // ✅ CAMBIO: Devolver la empresa actualizada completa con servicios
+    // ✅ Devolver la empresa actualizada completa con servicios
     const updatedEmpresaQuery = `
       SELECT e.*,
         COALESCE(
@@ -214,7 +240,6 @@ export async function PUT(req: NextRequest) {
       imagenes: updatedEmpresa.imagenes?.length || 0,
     });
 
-    // ✅ AGREGADO: Headers para evitar caché en la respuesta
     return NextResponse.json(
       {
         message: "Empresa actualizada correctamente",
