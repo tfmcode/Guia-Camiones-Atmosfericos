@@ -14,11 +14,10 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> } // 👈 CAMBIO: Promise<{ id: string }>
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params; // 👈 CAMBIO: await params
+  const { id } = params;
 
-  // cookies() es Promise en Next 15
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const user = token && verifyJwt(token);
@@ -67,8 +66,7 @@ export async function POST(
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const filename = `${baseName}-${Date.now()}.${ext}`;
 
-    // sin slash inicial; Nginx resuelve /uploads/ vía alias a /var/www/guia/uploads
-    const relative = path.join("empresa", String(id), filename);
+    const relative = path.join("empresa", String(id), filename); // sin slash inicial
     const target = path.join(BASE, relative);
 
     await fs.mkdir(path.dirname(target), { recursive: true });
