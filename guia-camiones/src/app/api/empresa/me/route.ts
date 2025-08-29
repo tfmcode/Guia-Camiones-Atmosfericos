@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { generarSlug } from "@/lib/slugify"; // ✅ AGREGADO: Importar función de slug
 import pool from "@/lib/db";
 
 export async function GET(req: NextRequest) {
@@ -35,7 +36,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ empresa });
+    // ✅ AGREGADO: Headers para evitar caché
+    return NextResponse.json(
+      { empresa },
+      {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error) {
     console.error("❌ Error al obtener empresa:", error);
     return NextResponse.json(
@@ -64,6 +75,26 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    // ✅ CAMBIO: Obtener datos actuales de la empresa para comparar
+    const empresaQuery =
+      "SELECT id, nombre, slug FROM empresa WHERE usuario_id = $1";
+    const { rows } = await pool.query(empresaQuery, [user.id]);
+    const empresa = rows[0];
+
+    if (!empresa) {
+      return NextResponse.json(
+        { message: "Empresa no encontrada" },
+        { status: 404 }
+      );
+    }
+
+    console.log(
+      "🔄 Actualizando empresa ID:",
+      empresa.id,
+      "- Usuario:",
+      user.id
+    );
+
     const updateData: Record<string, unknown> = {};
     Object.entries(rest).forEach(([key, value]) => {
       if (typeof value === "string") {
@@ -73,15 +104,12 @@ export async function PUT(req: NextRequest) {
       }
     });
 
-    const empresaQuery = "SELECT id FROM empresa WHERE usuario_id = $1";
-    const { rows } = await pool.query(empresaQuery, [user.id]);
-    const empresa = rows[0];
-
-    if (!empresa) {
-      return NextResponse.json(
-        { message: "Empresa no encontrada" },
-        { status: 404 }
-      );
+    // ✅ CAMBIO: Generar nuevo slug si cambió el nombre
+    let nuevoSlug = empresa.slug; // Mantener slug actual por defecto
+    if (updateData.nombre && updateData.nombre !== empresa.nombre) {
+      nuevoSlug = generarSlug(updateData.nombre as string);
+      updateData.slug = nuevoSlug;
+      console.log("📝 Nombre cambió, nuevo slug generado:", nuevoSlug);
     }
 
     // Construir dinámicamente el query de actualización
@@ -100,14 +128,24 @@ export async function PUT(req: NextRequest) {
       setClauses.push(`imagenes = $${idx}`);
       values.push(imagenes);
       idx++;
+      console.log("🖼️ Actualizando imágenes:", imagenes.length, "archivos");
     }
 
+    // ✅ CAMBIO: Solo actualizar si hay cambios
     if (setClauses.length > 0) {
       const updateQuery = `UPDATE empresa SET ${setClauses.join(
         ", "
-      )} WHERE id = $${idx}`;
+      )} WHERE id = $${idx} RETURNING slug`;
       values.push(empresa.id);
-      await pool.query(updateQuery, values);
+
+      console.log("🚀 Ejecutando actualización de empresa...");
+      const updateResult = await pool.query(updateQuery, values);
+      const empresaActualizada = updateResult.rows[0];
+
+      console.log(
+        "✅ Empresa actualizada, slug actual:",
+        empresaActualizada?.slug
+      );
     }
 
     // Actualizar contraseña si corresponde
@@ -117,14 +155,19 @@ export async function PUT(req: NextRequest) {
         hashed,
         user.id,
       ]);
+      console.log("🔐 Contraseña actualizada");
     }
 
-    // Actualizar servicios si se enviaron
+    // ✅ CAMBIO: Actualizar servicios de forma más robusta
     if (Array.isArray(servicios)) {
+      console.log("🔧 Actualizando servicios:", servicios);
+
+      // Eliminar servicios existentes
       await pool.query("DELETE FROM empresa_servicio WHERE empresa_id = $1", [
         empresa.id,
       ]);
 
+      // Insertar nuevos servicios
       if (servicios.length > 0) {
         const insertValues = servicios
           .map((id, i) => `($1, $${i + 2})`)
@@ -136,10 +179,15 @@ export async function PUT(req: NextRequest) {
           VALUES ${insertValues}
         `;
         await pool.query(insertQuery, params);
+        console.log(
+          "✅ Servicios actualizados:",
+          servicios.length,
+          "servicios"
+        );
       }
     }
 
-    // 🔄 Devolver la empresa actualizada con servicios
+    // ✅ CAMBIO: Devolver la empresa actualizada completa con servicios
     const updatedEmpresaQuery = `
       SELECT e.*,
         COALESCE(
@@ -158,10 +206,28 @@ export async function PUT(req: NextRequest) {
     ]);
     const updatedEmpresa = updatedRows[0];
 
-    return NextResponse.json({
-      message: "Empresa actualizada correctamente",
-      empresa: updatedEmpresa,
+    console.log("✅ Datos finales de empresa:", {
+      id: updatedEmpresa.id,
+      nombre: updatedEmpresa.nombre,
+      slug: updatedEmpresa.slug,
+      servicios: updatedEmpresa.servicios?.length || 0,
+      imagenes: updatedEmpresa.imagenes?.length || 0,
     });
+
+    // ✅ AGREGADO: Headers para evitar caché en la respuesta
+    return NextResponse.json(
+      {
+        message: "Empresa actualizada correctamente",
+        empresa: updatedEmpresa,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error) {
     console.error("❌ Error al actualizar empresa:", error);
     return NextResponse.json(
