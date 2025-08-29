@@ -8,21 +8,21 @@ export const dynamic = "force-dynamic";
 
 const BASE = process.env.UPLOADS_DIR ?? "/var/www/guia/uploads";
 const PUBLIC_BASE = process.env.UPLOADS_BASE_URL ?? "/uploads";
+// Usar la variable que ya tienes configurada
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://guia-atmosfericos.com";
 
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req: Request, context: unknown) {
-  // ✅ Tu casteo está perfecto
   const { id } = (context as { params?: { id?: string } })?.params ?? {};
   const empresaId = String(id ?? "");
 
-  // ✅ Manejo de cookies perfecto
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const user = token && verifyJwt(token);
 
-  // ✅ Validación de autorización perfecta
   if (
     !user ||
     typeof user === "string" ||
@@ -49,7 +49,6 @@ export async function POST(req: Request, context: unknown) {
     const urls: string[] = [];
 
     for (const file of files) {
-      // ✅ Validaciones de archivo perfectas
       if (!ALLOWED.has(file.type)) {
         return NextResponse.json(
           {
@@ -68,7 +67,6 @@ export async function POST(req: Request, context: unknown) {
         );
       }
 
-      // ✅ Generación de nombre perfecta
       const baseName =
         file.name
           .replace(/\.[^.]+$/, "")
@@ -78,31 +76,30 @@ export async function POST(req: Request, context: unknown) {
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
       const filename = `${baseName}-${Date.now()}.${ext}`;
 
-      // ✅ Construcción de rutas perfecta
       const relative = path.join("empresa", empresaId, filename);
       const target = path.join(BASE, relative);
 
-      // ✅ Crear directorio y escribir archivo
       await fs.mkdir(path.dirname(target), { recursive: true });
       const buf = Buffer.from(await file.arrayBuffer());
       await fs.writeFile(target, buf, { mode: 0o644 });
 
-      // ✅ OPCIONAL: Log para debugging (puedes quitarlo en producción)
       console.log(`📁 Archivo guardado: ${target}`);
-      console.log(
-        `🌐 URL pública: ${PUBLIC_BASE}/${relative.replace(/\\/g, "/")}`
-      );
 
-      urls.push(`${PUBLIC_BASE}/${relative.replace(/\\/g, "/")}`);
+      // FIX PRINCIPAL: Generar URL completa en lugar de relativa
+      const fullUrl = `${SITE_URL}${PUBLIC_BASE}/${relative.replace(
+        /\\/g,
+        "/"
+      )}`;
+      console.log(`URL completa generada: ${fullUrl}`);
+
+      urls.push(fullUrl);
     }
 
-    // ✅ Respuesta perfecta
     return NextResponse.json({
       urls,
       message: `${urls.length} archivo(s) subido(s) correctamente`,
     });
   } catch (error) {
-    // ✅ MEJORA MENOR: Mejor manejo de errores
     console.error("❌ Error en upload:", error);
 
     return NextResponse.json(
