@@ -12,61 +12,46 @@ const PUBLIC_BASE = process.env.UPLOADS_BASE_URL ?? "/uploads";
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
+export async function POST(req: Request, context: unknown) {
+  // ✅ Evitamos `any`: usamos `unknown` y casteamos localmente
+  const { id } = (context as { params?: { id?: string } })?.params ?? {};
+  const empresaId = String(id ?? "");
 
+  // En tu proyecto `cookies()` es Promise → usar await
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const user = token && verifyJwt(token);
 
-  if (
-    !user ||
-    typeof user === "string" ||
-    (user.rol !== "ADMIN" && user.rol !== "EMPRESA")
-  ) {
+  if (!user || typeof user === "string" || (user.rol !== "ADMIN" && user.rol !== "EMPRESA")) {
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
-  if (!id || Number.isNaN(Number(id))) {
+  if (!empresaId || Number.isNaN(Number(empresaId))) {
     return NextResponse.json({ message: "ID inválido" }, { status: 400 });
   }
 
   const form = await req.formData();
   const files = form.getAll("file") as File[];
   if (!files.length) {
-    return NextResponse.json(
-      { message: "No se recibieron archivos" },
-      { status: 400 }
-    );
+    return NextResponse.json({ message: "No se recibieron archivos" }, { status: 400 });
   }
 
   const urls: string[] = [];
 
   for (const file of files) {
     if (!ALLOWED.has(file.type)) {
-      return NextResponse.json(
-        { message: `Tipo de archivo no permitido: ${file.type}` },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: `Tipo de archivo no permitido: ${file.type}` }, { status: 400 });
     }
     if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { message: "El archivo es muy grande. Máximo 5MB." },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "El archivo es muy grande. Máximo 5MB." }, { status: 400 });
     }
 
     const baseName =
-      file.name
-        .replace(/\.[^.]+$/, "")
-        .replace(/\s+/g, "-")
-        .replace(/[^a-zA-Z0-9-]/g, "") || "img";
+      file.name.replace(/\.[^.]+$/, "").replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "") || "img";
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const filename = `${baseName}-${Date.now()}.${ext}`;
 
-    const relative = path.join("empresa", String(id), filename); // sin slash inicial
+    // sin slash inicial; Nginx sirve /uploads → /var/www/guia/uploads
+    const relative = path.join("empresa", empresaId, filename);
     const target = path.join(BASE, relative);
 
     await fs.mkdir(path.dirname(target), { recursive: true });
