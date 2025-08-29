@@ -9,29 +9,53 @@ type AuthContextType = {
   empresa: Empresa | null;
   loading: boolean;
   logout: () => void;
-  checkAuth: () => void; // ✅ Función para verificar auth manualmente
+  checkAuth: () => void;
+  refreshEmpresa: () => void; // ✅ Nueva función para refrescar datos de empresa
 };
 
 const AuthContext = createContext<AuthContextType>({
   usuario: null,
   empresa: null,
-  loading: false, // ✅ Cambio: por defecto false en páginas públicas
+  loading: false,
   logout: () => {},
   checkAuth: () => {},
+  refreshEmpresa: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
-  const [loading, setLoading] = useState(false); // ✅ Por defecto false
+  const [loading, setLoading] = useState(false);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
 
-  // ✅ Determinar si estamos en una ruta que requiere autenticación
+  // Determinar si estamos en una ruta que requiere autenticación
   const isPrivateRoute = pathname.startsWith("/panel");
   const isAuthRoute = pathname === "/login" || pathname === "/registro";
+
+  const fetchEmpresa = async () => {
+    try {
+      const empresaRes = await fetch("/api/empresa/me", {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!empresaRes.ok) {
+        console.warn("No se pudo cargar empresa para usuario EMPRESA");
+        setEmpresa(null);
+        return;
+      }
+
+      const data = await empresaRes.json();
+      console.log("Empresa cargada:", data.empresa);
+      setEmpresa(data.empresa);
+    } catch (error) {
+      console.error("Error al cargar empresa:", error);
+      setEmpresa(null);
+    }
+  };
 
   const fetchUsuario = async () => {
     setLoading(true);
@@ -42,7 +66,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (!res.ok) {
-        // ✅ En rutas públicas, no es un error
         if (!isPrivateRoute) {
           console.log("Usuario no autenticado en ruta pública - OK");
         } else {
@@ -57,24 +80,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Cargar empresa solo si es rol EMPRESA
       if (usuario.rol === "EMPRESA") {
-        const empresaRes = await fetch("/api/empresa/me", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (!empresaRes.ok) {
-          console.warn("No se pudo cargar empresa para usuario EMPRESA");
-          throw new Error("Error cargando empresa");
-        }
-
-        const data = await empresaRes.json();
-        console.log("Empresa cargada:", data.empresa);
-        setEmpresa(data.empresa);
+        await fetchEmpresa();
       } else {
         setEmpresa(null);
       }
     } catch (error) {
-      // ✅ Solo loguear error si estamos en ruta privada
       if (isPrivateRoute) {
         console.error("Error en fetchUsuario AuthContext:", error);
       }
@@ -86,20 +96,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // ✅ Función separada para refrescar solo los datos de empresa
+  const refreshEmpresa = async () => {
+    if (usuario && usuario.rol === "EMPRESA") {
+      await fetchEmpresa();
+    }
+  };
+
   useEffect(() => {
-    // ✅ Solo verificar auth automáticamente en rutas privadas o de auth
+    // Solo verificar auth automáticamente en rutas privadas o de auth
     if (isPrivateRoute || isAuthRoute) {
       if (!hasCheckedAuth) {
         fetchUsuario();
       }
     } else {
-      // ✅ En rutas públicas, solo marcar como "checkeado" sin hacer request
+      // En rutas públicas, solo marcar como "checkeado" sin hacer request
       setLoading(false);
       setHasCheckedAuth(true);
     }
   }, [pathname, hasCheckedAuth, isPrivateRoute, isAuthRoute]);
 
-  // ✅ Función manual para verificar auth (útil para login)
+  // Función manual para verificar auth (útil para login)
   const checkAuth = () => {
     fetchUsuario();
   };
@@ -121,7 +138,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ usuario, empresa, loading, logout, checkAuth }}
+      value={{ usuario, empresa, loading, logout, checkAuth, refreshEmpresa }}
     >
       {children}
     </AuthContext.Provider>

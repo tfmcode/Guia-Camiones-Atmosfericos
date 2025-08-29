@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useAuth } from "@/hooks/useAuth"; // ✅ Importar useAuth
 import { EmpresaInput } from "@/types";
 import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
 import { ImageUploader } from "@/components/ui/ImageUploader";
@@ -18,6 +19,7 @@ import {
 import Link from "next/link";
 
 export default function PanelEmpresa() {
+  const { refreshEmpresa } = useAuth(); // ✅ Obtener función de refresh
   const [form, setForm] = useState<
     EmpresaInput & { servicios: number[]; id?: number; slug?: string }
   >({
@@ -128,17 +130,28 @@ export default function PanelEmpresa() {
       await axios.put("/api/empresa/me", form, { withCredentials: true });
       setSuccess("¡Datos actualizados correctamente!");
 
+      // ✅ CAMBIO PRINCIPAL: Refrescar datos de empresa en el contexto
+      await refreshEmpresa();
+
       // Limpiar mensaje de éxito después de 3 segundos
       setTimeout(() => setSuccess(""), 3000);
-
-      // Opcional: refrescar para obtener datos actualizados
-      // router.refresh();
     } catch (error) {
       console.error("Error al actualizar los datos", error);
       setError("Error al actualizar los datos. Intentá nuevamente.");
     } finally {
       setSaving(false);
     }
+  };
+
+  // ✅ Handler mejorado para cambios de imágenes
+  const handleImagenesChange = async (nuevasImagenes: string[]) => {
+    console.log("🔄 Actualizando imágenes en el form:", nuevasImagenes);
+
+    // Actualizar el estado del formulario
+    setForm((prev) => ({ ...prev, imagenes: nuevasImagenes }));
+
+    // Refrescar los datos de empresa en el contexto para mantener sincronización
+    await refreshEmpresa();
   };
 
   if (loading) {
@@ -391,9 +404,7 @@ export default function PanelEmpresa() {
             <ImageUploader
               empresaId={form.id}
               imagenes={form.imagenes}
-              onChange={(nuevas: string[]) =>
-                setForm((prev) => ({ ...prev, imagenes: nuevas }))
-              }
+              onChange={handleImagenesChange} // ✅ Usar el handler mejorado
             />
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
