@@ -39,7 +39,6 @@ export const ImageUploader: React.FC<Props> = ({
   const imageRef = useRef<HTMLImageElement>(null);
   const cropperRef = useRef<HTMLDivElement>(null);
 
-  // Debug para rastrear el estado
   console.log("ImageUploader render:", {
     empresaId,
     imagenes: imagenes.length,
@@ -180,15 +179,16 @@ export const ImageUploader: React.FC<Props> = ({
         if (!blob) return;
 
         setUploading(true);
-        const formData = new FormData();
-        formData.append("file", blob, "cropped-image.jpg");
-
         try {
           console.log("Subiendo a /api/empresa/admin/" + empresaId + "/upload");
 
           const res = await fetch(`/api/empresa/admin/${empresaId}/upload`, {
             method: "POST",
-            body: formData,
+            body: (() => {
+              const formData = new FormData();
+              formData.append("file", blob, "cropped-image.jpg");
+              return formData;
+            })(),
           });
 
           if (!res.ok) {
@@ -200,21 +200,20 @@ export const ImageUploader: React.FC<Props> = ({
           const data = await res.json();
           console.log("Respuesta del servidor:", data);
 
-          // FIX: No agregar baseUrl, usar las URLs tal como vienen
           const nuevasUrls = data.urls as string[];
           console.log("URLs recibidas:", nuevasUrls);
 
-          // FIX: Crear el nuevo array correctamente
+          // ✅ CAMBIO PRINCIPAL: Crear array actualizado
           const todasLasImagenes = [...imagenes, ...nuevasUrls];
-          console.log("Array completo:", todasLasImagenes);
+          console.log("Array completo de imágenes:", todasLasImagenes);
 
-          // FIX: Llamar onChange con el array completo
+          // ✅ CAMBIO PRINCIPAL: Llamar onChange inmediatamente
           onChange(todasLasImagenes);
 
           setShowCropper(false);
           setCurrentImage(null);
 
-          console.log("Upload completado exitosamente");
+          console.log("Upload completado y estado actualizado");
         } catch (error) {
           console.error("Error en upload:", error);
           alert("Error al subir la imagen. Intentá de nuevo.");
@@ -228,11 +227,14 @@ export const ImageUploader: React.FC<Props> = ({
     );
   };
 
+  // ✅ CAMBIO PRINCIPAL: Función mejorada para eliminar
   const handleEliminar = (url: string) => {
     if (confirm("¿Estás seguro de eliminar esta imagen?")) {
       const nuevasImagenes = imagenes.filter((img) => img !== url);
       console.log("Eliminando imagen:", url);
-      console.log("Nuevas imágenes:", nuevasImagenes);
+      console.log("Nuevas imágenes después de eliminar:", nuevasImagenes);
+
+      // ✅ CAMBIO PRINCIPAL: Llamar onChange inmediatamente
       onChange(nuevasImagenes);
     }
   };
@@ -336,10 +338,10 @@ export const ImageUploader: React.FC<Props> = ({
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {imagenes.map((src, index) => {
-          console.log("Renderizando imagen:", src); // Debug cada imagen
+          console.log("Renderizando imagen:", src);
           return (
             <div
-              key={`${src}-${index}`} // FIX: Key más única
+              key={`${src}-${index}`}
               className="group relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 shadow-sm hover:shadow-md transition-all duration-200"
             >
               <img
@@ -401,6 +403,7 @@ export const ImageUploader: React.FC<Props> = ({
         className="hidden"
       />
 
+      {/* ✅ CAMBIO: Mensaje mejorado para aclarar el comportamiento */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -412,7 +415,13 @@ export const ImageUploader: React.FC<Props> = ({
               <li>• La primera imagen será la principal</li>
               <li>• Podés recortar y ajustar cada imagen antes de subirla</li>
               <li>• Formatos soportados: JPG, PNG, WebP</li>
-              <li>• Las imágenes se optimizan automáticamente</li>
+              <li>
+                • Las imágenes se guardan automáticamente al
+                subirlas/eliminarlas
+              </li>
+              <li>
+                • Los cambios aparecen inmediatamente en el perfil público
+              </li>
             </ul>
           </div>
         </div>
