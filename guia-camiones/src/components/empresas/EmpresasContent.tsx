@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import EmpresaCard from "@/components/empresas/EmpresasCard";
 import { getEmpresas } from "@/lib/api/empresaService";
@@ -11,10 +11,9 @@ export default function EmpresasContent() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [provincias, setProvincias] = useState<string[]>([]);
   const [localidades, setLocalidades] = useState<string[]>([]);
-  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>(
-    []
-  );
+  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -30,16 +29,44 @@ export default function EmpresasContent() {
   const paginaActual = parseInt(searchParams.get("pagina") || "1", 10);
   const empresasPorPagina = 9;
 
+  // ✅ FIX: useCallback para evitar warning de dependencias
+  const loadEmpresas = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getEmpresas();
+      
+      // ✅ FIX: Verificar el formato de respuesta y manejar ambos casos
+      if (Array.isArray(data)) {
+        console.log("📊 Empresas cargadas (array directo):", data.length);
+        setEmpresas(data);
+      } else if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data: Empresa[] }).data)) {
+        // ✅ FIX: Type assertion para manejar el objeto con metadata
+        const dataObj = data as { data: Empresa[]; timestamp?: string; count?: number };
+        console.log("📊 Empresas cargadas (objeto con metadata):", dataObj.data.length);
+        setEmpresas(dataObj.data);
+      } else {
+        console.error("❌ Formato de respuesta inesperado:", data);
+        setEmpresas([]);
+      }
+    } catch (error) {
+      console.error("❌ Error al cargar empresas:", error);
+      setEmpresas([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []); // ✅ FIX: Sin dependencias porque getEmpresas es estable
+
   useEffect(() => {
-    getEmpresas().then(setEmpresas);
-  }, []);
+    loadEmpresas();
+  }, [loadEmpresas]);
 
   useEffect(() => {
     fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre")
       .then((res) => res.json())
       .then((data) =>
         setProvincias(data.provincias.map((p: { nombre: string }) => p.nombre))
-      );
+      )
+      .catch((err: unknown) => console.error("Error al cargar provincias:", err));
   }, []);
 
   useEffect(() => {
@@ -52,7 +79,8 @@ export default function EmpresasContent() {
           setLocalidades(
             data.municipios.map((m: { nombre: string }) => m.nombre)
           )
-        );
+        )
+        .catch((err: unknown) => console.error("Error al cargar localidades:", err));
     } else {
       setLocalidades([]);
     }
@@ -61,10 +89,19 @@ export default function EmpresasContent() {
   useEffect(() => {
     fetch("/api/servicios")
       .then((res) => res.json())
-      .then((data) =>
-        setServiciosDisponibles(data.map((s: { nombre: string }) => s.nombre))
-      )
-      .catch((err) => console.error("Error al cargar servicios:", err));
+      .then((data) => {
+        // ✅ FIX: Verificar que data sea array antes de mapear
+        if (Array.isArray(data)) {
+          setServiciosDisponibles(data.map((s: { nombre: string }) => s.nombre));
+        } else {
+          console.error("❌ Servicios no es un array:", data);
+          setServiciosDisponibles([]);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error("Error al cargar servicios:", err);
+        setServiciosDisponibles([]);
+      });
   }, []);
 
   const filtrar = (empresa: Empresa) => {
@@ -83,7 +120,9 @@ export default function EmpresasContent() {
     return matchProvincia && matchLocalidad && matchServicio && matchDestacadas;
   };
 
-  const empresasFiltradas = empresas.filter(filtrar);
+  // ✅ FIX: Asegurar que empresas sea array antes de filtrar
+  const empresasFiltradas = Array.isArray(empresas) ? empresas.filter(filtrar) : [];
+  
   const empresasOrdenadas = [...empresasFiltradas].sort((a, b) => {
     if (orden === "nombre") return a.nombre.localeCompare(b.nombre);
     if (orden === "destacadas")
@@ -245,6 +284,37 @@ export default function EmpresasContent() {
       </div>
     );
   };
+
+  // ✅ AGREGADO: Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200 px-4 py-6 sm:px-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-32"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 animate-pulse">
+                <div className="aspect-[4/3] bg-gray-200"></div>
+                <div className="p-4 space-y-3">
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
