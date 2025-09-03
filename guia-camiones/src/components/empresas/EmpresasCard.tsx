@@ -28,8 +28,8 @@ const EmpresaCard = ({ empresa }: Props) => {
           priority={false}
         />
         {empresa.destacado && (
-          <div className="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-md">
-            <Star size={12} className="fill-current" />
+          <div className="absolute top-3 right-3 bg-gray-700 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-md">
+            <Star size={12} className="fill-current text-gray-300" />
             Destacada
           </div>
         )}

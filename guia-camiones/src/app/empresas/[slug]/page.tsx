@@ -93,8 +93,8 @@ export default async function EmpresaDetail(props: {
               </Link>
 
               {empresa.destacado && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-full font-semibold text-sm">
-                  <Star size={16} className="fill-current" />
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-full font-semibold text-sm shadow-md">
+                  <Star size={16} className="fill-current text-gray-300" />
                   Empresa Destacada
                 </div>
               )}

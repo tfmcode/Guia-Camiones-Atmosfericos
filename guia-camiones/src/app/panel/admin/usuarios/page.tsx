@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
 import type { Usuario, UsuarioInput } from "@/types/usuario";
 import axios from "axios";
-import { Users, Plus, AlertCircle } from "lucide-react";
+import { Users, Plus, AlertCircle, Mail, Calendar, User } from "lucide-react";
 
 // Extender Usuario para que sea compatible con DataTable
 type UsuarioWithIndex = Usuario & Record<string, unknown>;
@@ -127,11 +127,9 @@ export default function UsuariosAdminPage() {
     } catch (err: unknown) {
       console.error("Error al guardar usuario:", err);
 
-      // Manejo correcto del error de Axios
       let errorMessage =
         "Error al guardar usuario. Verifica que el email no esté ya registrado.";
 
-      // Verificación de tipo más robusta para errores de Axios
       if (
         err &&
         typeof err === "object" &&
@@ -186,16 +184,17 @@ export default function UsuariosAdminPage() {
     });
   };
 
+  // ✅ MEJORADO: Render de rol con mejor diseño
   const renderRol = (usuario: UsuarioWithIndex) => {
     const colores = {
-      ADMIN: "bg-red-100 text-red-800",
-      EMPRESA: "bg-blue-100 text-blue-800",
-      USUARIO: "bg-gray-100 text-gray-800",
+      ADMIN: "bg-red-100 text-red-800 border-red-200",
+      EMPRESA: "bg-blue-100 text-blue-800 border-blue-200",
+      USUARIO: "bg-gray-100 text-gray-800 border-gray-200",
     };
 
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
           colores[usuario.rol]
         }`}
       >
@@ -204,6 +203,28 @@ export default function UsuariosAdminPage() {
     );
   };
 
+  // ✅ NUEVO: Render de nombre con email
+  const renderNombreConEmail = (usuario: UsuarioWithIndex) => (
+    <div className="space-y-1">
+      <div className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+        <User size={14} className="text-gray-500" />
+        <span className="truncate max-w-[180px]">{usuario.nombre}</span>
+      </div>
+      <div className="flex items-center gap-1 text-xs text-gray-500">
+        <Mail size={12} />
+        <span className="truncate max-w-[180px]">{usuario.email}</span>
+      </div>
+    </div>
+  );
+
+  // ✅ NUEVO: Render de fecha mejorado
+  const renderFechaCreacion = (usuario: UsuarioWithIndex) => (
+    <div className="flex items-center gap-2 text-sm text-gray-600">
+      <Calendar size={14} className="text-gray-400" />
+      <span>{formatearFecha(usuario.creado_en)}</span>
+    </div>
+  );
+
   // Convertir usuarios para compatibilidad con DataTable
   const usuariosConIndex: UsuarioWithIndex[] = usuarios.map((usuario) => ({
     ...usuario,
@@ -211,49 +232,55 @@ export default function UsuariosAdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
-            <Users size={20} className="text-white" />
+      {/* ✅ MEJORADO: Header más profesional */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+              <Users size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestión de Usuarios
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Administra las cuentas de usuario del sistema
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Gestión de Usuarios
-            </h1>
-            <p className="text-gray-600">
-              Administra las cuentas de usuario del sistema
-            </p>
-          </div>
-        </div>
 
-        <button
-          onClick={abrirNuevo}
-          disabled={loading || tableLoading}
-          className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors ${
-            loading || tableLoading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        >
-          <Plus size={18} />
-          Nuevo Usuario
-        </button>
+          <button
+            onClick={abrirNuevo}
+            disabled={loading || tableLoading}
+            className={`flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
+              loading || tableLoading
+                ? "opacity-50 cursor-not-allowed transform-none"
+                : "hover:bg-blue-700 hover:scale-105"
+            }`}
+          >
+            <Plus size={20} />
+            Nuevo Usuario
+          </button>
+        </div>
       </div>
 
       {/* Mensajes globales */}
       {error && !modalAbierto && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle size={20} className="text-red-500 flex-shrink-0" />
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+          <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <AlertCircle size={16} className="text-white" />
+          </div>
+          <p className="text-red-700 text-sm font-medium flex-1">{error}</p>
           <button
             onClick={() => setError("")}
-            className="ml-auto text-red-500 hover:text-red-700"
+            className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg p-1 transition-colors"
           >
             ×
           </button>
         </div>
       )}
 
-      {/* Tabla de usuarios */}
+      {/* ✅ NUEVO: DataTable con columnas optimizadas */}
       <DataTable<UsuarioWithIndex>
         data={usuariosConIndex}
         loading={tableLoading}
@@ -261,30 +288,25 @@ export default function UsuariosAdminPage() {
         columns={[
           {
             key: "nombre",
-            label: "Nombre",
+            label: "Usuario",
             sortable: true,
-            width: "w-1/4",
-          },
-          {
-            key: "email",
-            label: "Email",
-            sortable: true,
-            width: "w-1/3",
+            render: renderNombreConEmail,
+            width: "min-w-[220px]",
+            sticky: true, // ✅ Columna fija para mejor navegación
           },
           {
             key: "rol",
-            label: "Rol",
+            label: "Rol y Permisos",
             sortable: true,
             render: renderRol,
-            width: "w-1/6",
+            width: "min-w-[140px]",
           },
           {
             key: "creado_en",
             label: "Fecha de Registro",
             sortable: true,
-            render: (usuario: UsuarioWithIndex) =>
-              formatearFecha(usuario.creado_en),
-            width: "w-1/4",
+            render: renderFechaCreacion,
+            width: "min-w-[160px]",
           },
         ]}
         onEdit={abrirEditar}
@@ -292,114 +314,159 @@ export default function UsuariosAdminPage() {
         pageSize={15}
       />
 
-      {/* Modal */}
+      {/* ✅ MEJORADO: Modal más espacioso */}
       <Modal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         title={modoEdicion ? "Editar Usuario" : "Nuevo Usuario"}
-        size="md"
+        size="lg"
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            guardar();
-          }}
-          className="space-y-6"
-        >
-          {/* Mensajes del modal */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-              <AlertCircle size={18} className="text-red-500 flex-shrink-0" />
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs">✓</span>
+        <div className="max-h-[80vh] overflow-y-auto">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              guardar();
+            }}
+            className="space-y-6 p-2"
+          >
+            {/* Mensajes del modal */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <AlertCircle size={14} className="text-white" />
+                </div>
+                <p className="text-red-700 text-sm font-medium">{error}</p>
               </div>
-              <p className="text-green-700 text-sm font-medium">{success}</p>
+            )}
+
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+                <p className="text-green-700 text-sm font-medium">{success}</p>
+              </div>
+            )}
+
+            {/* ✅ MEJORADO: Campos organizados */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                label="Nombre completo"
+                name="nombre"
+                value={form.nombre}
+                onChange={handleChange}
+                placeholder="Ej: Juan Pérez"
+                required
+                disabled={loading}
+              />
+
+              <FormField
+                label="Email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                type="email"
+                placeholder="usuario@example.com"
+                required
+                disabled={loading}
+              />
             </div>
-          )}
 
-          {/* Campos del formulario */}
-          <FormField
-            label="Nombre completo"
-            name="nombre"
-            value={form.nombre}
-            onChange={handleChange}
-            placeholder="Ej: Juan Pérez"
-            required
-            disabled={loading}
-          />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                label={
+                  modoEdicion ? "Nueva Contraseña (opcional)" : "Contraseña"
+                }
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                type="password"
+                placeholder={
+                  modoEdicion
+                    ? "Dejar vacío para mantener actual"
+                    : "Mínimo 4 caracteres"
+                }
+                required={!modoEdicion}
+                disabled={loading}
+                helperText={
+                  modoEdicion
+                    ? "Solo completar si quieres cambiar la contraseña"
+                    : "La contraseña debe tener al menos 4 caracteres"
+                }
+              />
 
-          <FormField
-            label="Email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            type="email"
-            placeholder="usuario@example.com"
-            required
-            disabled={loading}
-          />
+              <FormField
+                label="Rol del usuario"
+                name="rol"
+                value={form.rol}
+                onChange={handleChange}
+                type="select"
+                options={rolOptions}
+                required
+                disabled={loading}
+                helperText="Determina los permisos del usuario en el sistema"
+              />
+            </div>
 
-          <FormField
-            label={modoEdicion ? "Nueva Contraseña (opcional)" : "Contraseña"}
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            type="password"
-            placeholder={
-              modoEdicion
-                ? "Dejar vacío para mantener actual"
-                : "Mínimo 4 caracteres"
-            }
-            required={!modoEdicion}
-            disabled={loading}
-            helperText={
-              modoEdicion
-                ? "Solo completar si quieres cambiar la contraseña"
-                : undefined
-            }
-          />
+            {/* ✅ NUEVO: Información sobre roles */}
+            <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3">
+                Información sobre roles
+              </h3>
+              <div className="space-y-2 text-sm text-blue-800">
+                <div className="flex items-center gap-2">
+                  <span>
+                    <strong>ADMIN:</strong> Acceso completo al sistema
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>
+                    <strong>EMPRESA:</strong> Puede gestionar su perfil de
+                    empresa
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>
+                    <strong>USUARIO:</strong> Acceso básico (reservado para
+                    futuro)
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          <FormField
-            label="Rol"
-            name="rol"
-            value={form.rol}
-            onChange={handleChange}
-            type="select"
-            options={rolOptions}
-            required
-            disabled={loading}
-            helperText="Determina los permisos del usuario en el sistema"
-          />
-
-          {/* Botones */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setModalAbierto(false)}
-              disabled={loading}
-              className="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading
-                ? "Guardando..."
-                : modoEdicion
-                ? "Actualizar"
-                : "Crear Usuario"}
-            </button>
-          </div>
-        </form>
+            {/* ✅ MEJORADO: Botones más profesionales */}
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setModalAbierto(false)}
+                disabled={loading}
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
+                  loading
+                    ? "opacity-50 cursor-not-allowed transform-none"
+                    : "hover:bg-blue-700 hover:scale-105"
+                }`}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Guardando...
+                  </div>
+                ) : modoEdicion ? (
+                  "Actualizar Usuario"
+                ) : (
+                  "Crear Usuario"
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </Modal>
     </div>
   );

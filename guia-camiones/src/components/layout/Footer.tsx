@@ -153,7 +153,7 @@ const Footer = () => {
               </a>
 
               <a
-                href="mailto:hola@guia-atmosfericos.com"
+                href="mailto:administracion@guia-atmosfericos.com"
                 className="flex items-center gap-3 text-gray-600 hover:text-[#1c2e39] transition-colors duration-200 group"
               >
                 <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -162,7 +162,7 @@ const Footer = () => {
                 <div>
                   <p className="text-sm font-medium">Email</p>
                   <p className="text-xs text-gray-500">
-                    hola@guia-atmosfericos.com
+                    administracion@guia-atmosfericos.com
                   </p>
                 </div>
               </a>

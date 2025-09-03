@@ -9,6 +9,7 @@ import { ImageUploader } from "@/components/ui/ImageUploader";
 import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
+import { Building2, Plus, Eye, MapPin, Phone } from "lucide-react";
 
 // Extender Empresa para que sea compatible con DataTable
 type EmpresaWithIndex = Empresa & Record<string, unknown>;
@@ -90,7 +91,7 @@ export default function EmpresasAdminPage() {
     try {
       const res = await fetch("/api/empresa/admin");
       const data = await res.json();
-      console.log("📊 Empresas cargadas desde API:", data); // Debug
+      console.log("📊 Empresas cargadas desde API:", data);
       setEmpresas(data);
     } catch (err: unknown) {
       console.error("Error al cargar empresas:", err);
@@ -129,8 +130,7 @@ export default function EmpresasAdminPage() {
   };
 
   const abrirEditar = (empresa: EmpresaWithIndex) => {
-    console.log("🔧 Abriendo empresa para editar:", empresa); // Debug
-    console.log("🖼️ Imágenes de la empresa:", empresa.imagenes); // Debug
+    console.log("🔧 Abriendo empresa para editar:", empresa);
 
     setForm({
       nombre: empresa.nombre,
@@ -157,40 +157,39 @@ export default function EmpresasAdminPage() {
     setModalAbierto(true);
   };
 
-  // ✅ FIX: Función específica para manejar cambios de imágenes
-  const handleImagenesChange = async (nuevasImagenes: string[]) => {
-    console.log("🔄 handleImagenesChange llamado con:", nuevasImagenes); // Debug
+  // ✅ NUEVO: Función para ver detalles (perfil público)
+  const verDetalles = (empresa: EmpresaWithIndex) => {
+    window.open(`/empresas/${empresa.slug}`, "_blank");
+  };
 
-    // Actualizar el estado del formulario inmediatamente
+  const handleImagenesChange = async (nuevasImagenes: string[]) => {
+    console.log("🔄 handleImagenesChange llamado con:", nuevasImagenes);
+
     setForm((prev) => {
       const nuevoForm = { ...prev, imagenes: nuevasImagenes };
-      console.log("📝 Form actualizado con nuevas imágenes:", nuevoForm); // Debug
+      console.log("📝 Form actualizado con nuevas imágenes:", nuevoForm);
       return nuevoForm;
     });
 
-    // Si estamos en modo edición, actualizar en el servidor automáticamente
     if (modoEdicion && empresaIdEditar !== null) {
       try {
-        console.log("🚀 Enviando actualización al servidor..."); // Debug
+        console.log("🚀 Enviando actualización al servidor...");
 
-        // Crear el payload con todas las propiedades del formulario + nuevas imágenes
         const payload = {
           ...form,
           imagenes: nuevasImagenes,
         };
 
-        console.log("📦 Payload a enviar:", payload); // Debug
+        console.log("📦 Payload a enviar:", payload);
 
         const response = await axios.put(
           `/api/empresa/admin/${empresaIdEditar}`,
           payload
         );
-        console.log("✅ Respuesta del servidor:", response.data); // Debug
+        console.log("✅ Respuesta del servidor:", response.data);
 
-        // Refrescar la tabla para mostrar los cambios
         await fetchEmpresas();
-
-        console.log("🔄 Tabla refrescada correctamente"); // Debug
+        console.log("🔄 Tabla refrescada correctamente");
       } catch (error) {
         console.error("❌ Error al actualizar imágenes en servidor:", error);
         setError("Error al actualizar las imágenes en el servidor.");
@@ -204,7 +203,7 @@ export default function EmpresasAdminPage() {
       return;
     }
 
-    console.log("💾 Guardando empresa con imagenes:", form.imagenes); // Debug
+    console.log("💾 Guardando empresa con imagenes:", form.imagenes);
 
     setLoading(true);
     try {
@@ -213,12 +212,11 @@ export default function EmpresasAdminPage() {
           `/api/empresa/admin/${empresaIdEditar}`,
           form
         );
-        console.log("✅ Empresa actualizada exitosamente:", response.data); // Debug
+        console.log("✅ Empresa actualizada exitosamente:", response.data);
       } else {
         const response = await axios.post("/api/empresa/admin", form);
-        console.log("✅ Empresa creada:", response.data); // Debug
+        console.log("✅ Empresa creada:", response.data);
 
-        // Si es una nueva empresa, obtener el ID de la respuesta para futuras ediciones
         if (
           response.data &&
           typeof response.data === "object" &&
@@ -230,10 +228,8 @@ export default function EmpresasAdminPage() {
         }
       }
 
-      // ✅ FIX: Siempre refrescar la tabla después de guardar
       await fetchEmpresas();
 
-      // No cerrar el modal inmediatamente si es una nueva empresa (para permitir agregar imágenes)
       if (modoEdicion) {
         setModalAbierto(false);
       }
@@ -297,12 +293,66 @@ export default function EmpresasAdminPage() {
     }
   };
 
+  // ✅ MEJORADO: Render de estados con mejor diseño
   const renderBooleanIcon = (value: boolean) =>
     value ? (
-      <CheckCircleIcon className="h-5 w-5 text-green-500" />
+      <div className="flex items-center gap-2">
+        <CheckCircleIcon className="h-5 w-5 text-green-500" />
+        <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
+          Activa
+        </span>
+      </div>
     ) : (
-      <XCircleIcon className="h-5 w-5 text-red-500" />
+      <div className="flex items-center gap-2">
+        <XCircleIcon className="h-5 w-5 text-red-500" />
+        <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+          Inactiva
+        </span>
+      </div>
     );
+
+  // ✅ NUEVO: Render de ubicación optimizado
+  const renderUbicacion = (empresa: EmpresaWithIndex) => (
+    <div className="space-y-1">
+      {empresa.direccion && (
+        <div className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
+          {empresa.direccion}
+        </div>
+      )}
+      {(empresa.localidad || empresa.provincia) && (
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          <MapPin size={12} />
+          <span className="truncate">
+            {[empresa.localidad, empresa.provincia].filter(Boolean).join(", ")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
+  // ✅ NUEVO: Render de contacto optimizado
+  const renderContacto = (empresa: EmpresaWithIndex) => (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+        <Phone size={12} />
+        <span className="truncate">{empresa.telefono}</span>
+      </div>
+      {empresa.email && (
+        <div className="text-xs text-gray-500 truncate max-w-[180px]">
+          {empresa.email}
+        </div>
+      )}
+    </div>
+  );
+
+  // ✅ NUEVO: Render del nombre con servicios
+  const renderNombreConServicios = (empresa: EmpresaWithIndex) => (
+    <div className="space-y-2">
+      <div className="font-semibold text-gray-900 text-sm leading-tight max-w-[200px]">
+        {empresa.nombre}
+      </div>
+    </div>
+  );
 
   // Convertir empresas para compatibilidad con DataTable
   const empresasConIndex: EmpresaWithIndex[] = empresas.map((empresa) => ({
@@ -310,144 +360,233 @@ export default function EmpresasAdminPage() {
   }));
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-        <h1 className="text-2xl font-bold">Empresas</h1>
-        <button
-          onClick={abrirNuevo}
-          disabled={loading || tableLoading}
-          className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto ${
-            loading || tableLoading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        >
-          Nueva Empresa
-        </button>
+    <div className="space-y-6">
+      {/* ✅ MEJORADO: Header más profesional */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+              <Building2 size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestión de Empresas
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Administra todas las empresas registradas en la plataforma
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={abrirNuevo}
+            disabled={loading || tableLoading}
+            className={`flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
+              loading || tableLoading
+                ? "opacity-50 cursor-not-allowed transform-none"
+                : "hover:bg-blue-700 hover:scale-105"
+            }`}
+          >
+            <Plus size={20} />
+            Nueva Empresa
+          </button>
+        </div>
       </div>
 
       {/* Mensajes globales */}
       {error && !modalAbierto && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+          <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">!</span>
+          </div>
+          <p className="text-red-700 text-sm font-medium flex-1">{error}</p>
           <button
             onClick={() => setError("")}
-            className="ml-auto text-red-500 hover:text-red-700"
+            className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg p-1 transition-colors"
           >
             ×
           </button>
         </div>
       )}
 
-      <div className="-mx-4 sm:mx-0 overflow-x-auto">
-        <DataTable<EmpresaWithIndex>
-          data={empresasConIndex}
-          loading={tableLoading}
-          searchKeys={["nombre", "email", "direccion", "telefono"]}
-          columns={[
-            {
-              key: "nombre",
-              label: "Nombre",
-              sortable: true,
-              width: "w-1/4",
-            },
-            {
-              key: "email",
-              label: "Email",
-              sortable: true,
-              width: "w-1/4",
-            },
-            {
-              key: "direccion",
-              label: "Dirección",
-              sortable: true,
-              width: "w-1/4",
-            },
-            {
-              key: "telefono",
-              label: "Teléfono",
-              sortable: true,
-              width: "w-1/6",
-            },
-            {
-              key: "destacado",
-              label: "Destacada",
-              sortable: true,
-              render: (empresa: EmpresaWithIndex) =>
-                renderBooleanIcon(empresa.destacado as boolean),
-              width: "w-1/12",
-            },
-            {
-              key: "habilitado",
-              label: "Habilitada",
-              sortable: true,
-              render: (empresa: EmpresaWithIndex) =>
-                renderBooleanIcon(empresa.habilitado as boolean),
-              width: "w-1/12",
-            },
-          ]}
-          onEdit={abrirEditar}
-          onDelete={eliminar}
-          pageSize={15}
-        />
-      </div>
+      {/* ✅ NUEVO: DataTable con columnas optimizadas y función onView */}
+      <DataTable<EmpresaWithIndex>
+        data={empresasConIndex}
+        loading={tableLoading}
+        searchKeys={["nombre", "email", "direccion", "telefono"]}
+        columns={[
+          {
+            key: "nombre",
+            label: "Empresa y Servicios",
+            sortable: true,
+            render: renderNombreConServicios,
+            width: "min-w-[280px]",
+            sticky: true, // ✅ Columna fija para mejor navegación
+          },
+          {
+            key: "telefono",
+            label: "Contacto",
+            sortable: true,
+            render: renderContacto,
+            width: "min-w-[200px]",
+          },
+          {
+            key: "direccion",
+            label: "Ubicación",
+            sortable: true,
+            render: renderUbicacion,
+            width: "min-w-[220px]",
+          },
+          {
+            key: "destacado",
+            label: "Destacada",
+            sortable: true,
+            render: (empresa: EmpresaWithIndex) =>
+              renderBooleanIcon(empresa.destacado as boolean),
+            width: "min-w-[120px]",
+          },
+          {
+            key: "habilitado",
+            label: "Habilitada",
+            sortable: true,
+            render: (empresa: EmpresaWithIndex) =>
+              renderBooleanIcon(empresa.habilitado as boolean),
+            width: "min-w-[120px]",
+          },
+        ]}
+        onView={verDetalles} // ✅ NUEVO: Botón para ver perfil público
+        onEdit={abrirEditar}
+        onDelete={eliminar}
+        pageSize={12} // ✅ Tamaño optimizado
+      />
 
+      {/* Modal - se mantiene igual pero con tamaño xl para mejor experiencia */}
       <Modal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         title={modoEdicion ? "Editar Empresa" : "Nueva Empresa"}
+        size="xl"
       >
-        <div className="max-h-[80vh] overflow-y-auto p-1">
+        <div className="max-h-[85vh] overflow-y-auto">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               guardar();
             }}
-            className="space-y-4"
+            className="space-y-6 p-2"
           >
             {error && (
-              <div className="bg-red-100 text-red-700 px-4 py-2 rounded text-sm text-center">
-                {error}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xs">!</span>
+                </div>
+                <p className="text-red-700 text-sm font-medium">{error}</p>
               </div>
             )}
 
-            <FormField
-              label="Nombre"
-              name="nombre"
-              value={form.nombre}
-              onChange={handleChange}
-            />
-            <FormField
-              label="Email"
-              name="email"
-              value={form.email || ""}
-              onChange={handleChange}
-              type="email"
-            />
-            <FormField
-              label="Teléfono"
-              name="telefono"
-              value={form.telefono}
-              onChange={handleChange}
-            />
+            {/* Campos del formulario organizados en grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                label="Nombre de la empresa"
+                name="nombre"
+                value={form.nombre}
+                onChange={handleChange}
+                required
+              />
+              <FormField
+                label="Email de contacto"
+                name="email"
+                value={form.email || ""}
+                onChange={handleChange}
+                type="email"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                label="Teléfono"
+                name="telefono"
+                value={form.telefono}
+                onChange={handleChange}
+                required
+              />
+              <FormField
+                label="Sitio web"
+                name="web"
+                value={form.web || ""}
+                onChange={handleChange}
+                placeholder="www.ejemplo.com"
+              />
+            </div>
+
             <FormField
               label="Dirección"
               name="direccion"
               value={form.direccion}
               onChange={handleChange}
+              placeholder="Av. Principal 1234"
             />
+
             <FormField
-              label="Web"
-              name="web"
-              value={form.web || ""}
-              onChange={handleChange}
-            />
-            <FormField
-              label="Corriente de Residuos"
+              label="Descripción de servicios"
               name="corrientes_de_residuos"
               value={form.corrientes_de_residuos || ""}
               onChange={handleChange}
+              type="textarea"
+              rows={3}
+              placeholder="Describe los servicios que ofrece la empresa..."
             />
 
-            <div className="space-y-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Provincia
+                </label>
+                <select
+                  name="provincia"
+                  value={form.provincia}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      provincia: e.target.value,
+                      localidad: "",
+                    })
+                  }
+                  className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccione una provincia</option>
+                  {provincias.map((prov) => (
+                    <option key={prov.id} value={prov.nombre}>
+                      {prov.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Localidad
+                </label>
+                <select
+                  name="localidad"
+                  value={form.localidad}
+                  onChange={(e) =>
+                    setForm({ ...form, localidad: e.target.value })
+                  }
+                  className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={!form.provincia}
+                >
+                  <option value="">Seleccione una localidad</option>
+                  {localidades.map((loc) => (
+                    <option key={loc.id} value={loc.nombre}>
+                      {loc.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Usuario EMPRESA asignado
               </label>
@@ -460,7 +599,7 @@ export default function EmpresasAdminPage() {
                     usuarioId: e.target.value ? parseInt(e.target.value) : null,
                   })
                 }
-                className="block w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Sin asignar</option>
                 {usuariosEmpresa.map((usuario) => (
@@ -471,100 +610,94 @@ export default function EmpresasAdminPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Provincia
-              </label>
-              <select
-                name="provincia"
-                value={form.provincia}
-                onChange={(e) =>
-                  setForm({ ...form, provincia: e.target.value, localidad: "" })
-                }
-                className="block w-full border border-gray-300 rounded px-3 py-2 text-sm"
-              >
-                <option value="">Seleccione una provincia</option>
-                {provincias.map((prov) => (
-                  <option key={prov.id} value={prov.nombre}>
-                    {prov.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Localidad
-              </label>
-              <select
-                name="localidad"
-                value={form.localidad}
-                onChange={(e) =>
-                  setForm({ ...form, localidad: e.target.value })
-                }
-                className="block w-full border border-gray-300 rounded px-3 py-2 text-sm"
-              >
-                <option value="">Seleccione una localidad</option>
-                {localidades.map((loc) => (
-                  <option key={loc.id} value={loc.nombre}>
-                    {loc.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <ServicioMultiSelect
               serviciosSeleccionados={form.servicios}
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
 
-            {/* ✅ FIX: ImageUploader con el handler correcto */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Imágenes de la empresa
-              </label>
+            {/* Sección de imágenes mejorada */}
+            <div className="space-y-4 bg-gray-50 rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+                  <Eye size={16} className="text-white" />
+                </div>
+                <div>
+                  <label className="block text-lg font-semibold text-gray-900">
+                    Galería de Imágenes
+                  </label>
+                  <p className="text-sm text-gray-600">
+                    La primera imagen será la imagen principal de la empresa
+                  </p>
+                </div>
+              </div>
+
               {modoEdicion && empresaIdEditar ? (
                 <ImageUploader
                   empresaId={empresaIdEditar}
                   imagenes={form.imagenes}
-                  onChange={handleImagenesChange} // ✅ Usar la función específica
+                  onChange={handleImagenesChange}
                 />
               ) : (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500 text-sm">
-                  Las imágenes se pueden agregar después de crear la empresa
+                <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <Eye size={32} className="text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 font-medium">
+                    Imágenes disponibles después de crear
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Las imágenes se pueden agregar después de crear la empresa
+                  </p>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center gap-2 text-sm">
+            {/* Checkboxes mejorados */}
+            <div className="flex items-center gap-8 bg-blue-50 rounded-xl p-6 border border-blue-200">
+              <label className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={form.destacado}
                   onChange={(e) =>
                     setForm({ ...form, destacado: e.target.checked })
                   }
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                Destacada
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    Empresa Destacada
+                  </span>
+                  <p className="text-xs text-gray-600">
+                    Aparecerá en los primeros resultados
+                  </p>
+                </div>
               </label>
-              <label className="flex items-center gap-2 text-sm">
+
+              <label className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={form.habilitado}
                   onChange={(e) =>
                     setForm({ ...form, habilitado: e.target.checked })
                   }
+                  className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                 />
-                Habilitada
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    Empresa Habilitada
+                  </span>
+                  <p className="text-xs text-gray-600">
+                    Visible en la guía pública
+                  </p>
+                </div>
               </label>
             </div>
 
-            <div className="flex justify-end gap-3">
+            {/* Botones mejorados */}
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={() => setModalAbierto(false)}
                 disabled={loading}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 font-medium"
               >
                 Cancelar
               </button>
@@ -573,11 +706,20 @@ export default function EmpresasAdminPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${
-                    loading ? "opacity-50 cursor-not-allowed" : ""
+                  className={`px-6 py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
+                    loading
+                      ? "opacity-50 cursor-not-allowed transform-none"
+                      : "hover:bg-green-700 hover:scale-105"
                   }`}
                 >
-                  {loading ? "Creando..." : "Crear y Continuar Editando"}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Creando...
+                    </div>
+                  ) : (
+                    "Crear Empresa"
+                  )}
                 </button>
               )}
 
@@ -585,11 +727,20 @@ export default function EmpresasAdminPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
-                    loading ? "opacity-50 cursor-not-allowed" : ""
+                  className={`px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
+                    loading
+                      ? "opacity-50 cursor-not-allowed transform-none"
+                      : "hover:bg-blue-700 hover:scale-105"
                   }`}
                 >
-                  {loading ? "Guardando..." : "Guardar Cambios"}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Guardando...
+                    </div>
+                  ) : (
+                    "Guardar Cambios"
+                  )}
                 </button>
               )}
             </div>
