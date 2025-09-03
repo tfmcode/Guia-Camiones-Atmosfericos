@@ -6,12 +6,15 @@ import EmpresaCard from "@/components/empresas/EmpresasCard";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { Empresa } from "@/types/empresa";
 import { ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
 export default function EmpresasContent() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [provincias, setProvincias] = useState<string[]>([]);
   const [localidades, setLocalidades] = useState<string[]>([]);
-  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>([]);
+  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>(
+    []
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -34,15 +37,27 @@ export default function EmpresasContent() {
     setLoading(true);
     try {
       const data = await getEmpresas();
-      
+
       // ✅ FIX: Verificar el formato de respuesta y manejar ambos casos
       if (Array.isArray(data)) {
         console.log("📊 Empresas cargadas (array directo):", data.length);
         setEmpresas(data);
-      } else if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data: Empresa[] }).data)) {
+      } else if (
+        data &&
+        typeof data === "object" &&
+        "data" in data &&
+        Array.isArray((data as { data: Empresa[] }).data)
+      ) {
         // ✅ FIX: Type assertion para manejar el objeto con metadata
-        const dataObj = data as { data: Empresa[]; timestamp?: string; count?: number };
-        console.log("📊 Empresas cargadas (objeto con metadata):", dataObj.data.length);
+        const dataObj = data as {
+          data: Empresa[];
+          timestamp?: string;
+          count?: number;
+        };
+        console.log(
+          "📊 Empresas cargadas (objeto con metadata):",
+          dataObj.data.length
+        );
         setEmpresas(dataObj.data);
       } else {
         console.error("❌ Formato de respuesta inesperado:", data);
@@ -66,24 +81,64 @@ export default function EmpresasContent() {
       .then((data) =>
         setProvincias(data.provincias.map((p: { nombre: string }) => p.nombre))
       )
-      .catch((err: unknown) => console.error("Error al cargar provincias:", err));
+      .catch((err: unknown) =>
+        console.error("Error al cargar provincias:", err)
+      );
   }, []);
 
   useEffect(() => {
-    if (filtro.provincia) {
-      fetch(
-        `https://apis.datos.gob.ar/georef/api/municipios?provincia=${filtro.provincia}&campos=nombre&max=1000`
-      )
-        .then((res) => res.json())
-        .then((data) =>
-          setLocalidades(
-            data.municipios.map((m: { nombre: string }) => m.nombre)
-          )
-        )
-        .catch((err: unknown) => console.error("Error al cargar localidades:", err));
-    } else {
-      setLocalidades([]);
-    }
+    const cargarLocalidades = async () => {
+      if (!filtro.provincia) {
+        setLocalidades([]);
+        return;
+      }
+
+      try {
+        // ✅ Detectar si es CABA
+        if (esCaba(filtro.provincia)) {
+          console.log("🏙️ Cargando barrios de CABA para filtros...");
+          const barrios = getBarriosFormateados();
+          setLocalidades(barrios.map((b) => b.nombre));
+          console.log(`✅ ${barrios.length} barrios de CABA cargados`);
+          return;
+        }
+
+        // ✅ Para el resto de provincias usar la API normal
+        console.log(`🌎 Cargando localidades para: ${filtro.provincia}`);
+
+        const response = await fetch(
+          `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
+            filtro.provincia
+          )}&campos=nombre&max=1000`
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const localidadesNombres = data.municipios.map(
+          (m: { nombre: string }) => m.nombre
+        );
+
+        setLocalidades(localidadesNombres);
+        console.log(
+          `✅ ${localidadesNombres.length} localidades cargadas para ${filtro.provincia}`
+        );
+      } catch (error) {
+        console.error("❌ Error al cargar localidades:", error);
+        setLocalidades([]);
+
+        // Fallback para CABA
+        if (esCaba(filtro.provincia)) {
+          console.log("🔄 Usando fallback para barrios de CABA...");
+          const barrios = getBarriosFormateados();
+          setLocalidades(barrios.map((b) => b.nombre));
+        }
+      }
+    };
+
+    cargarLocalidades();
   }, [filtro.provincia]);
 
   useEffect(() => {
@@ -92,7 +147,9 @@ export default function EmpresasContent() {
       .then((data) => {
         // ✅ FIX: Verificar que data sea array antes de mapear
         if (Array.isArray(data)) {
-          setServiciosDisponibles(data.map((s: { nombre: string }) => s.nombre));
+          setServiciosDisponibles(
+            data.map((s: { nombre: string }) => s.nombre)
+          );
         } else {
           console.error("❌ Servicios no es un array:", data);
           setServiciosDisponibles([]);
@@ -121,8 +178,10 @@ export default function EmpresasContent() {
   };
 
   // ✅ FIX: Asegurar que empresas sea array antes de filtrar
-  const empresasFiltradas = Array.isArray(empresas) ? empresas.filter(filtrar) : [];
-  
+  const empresasFiltradas = Array.isArray(empresas)
+    ? empresas.filter(filtrar)
+    : [];
+
   const empresasOrdenadas = [...empresasFiltradas].sort((a, b) => {
     if (orden === "nombre") return a.nombre.localeCompare(b.nombre);
     if (orden === "destacadas")
@@ -297,11 +356,14 @@ export default function EmpresasContent() {
             </div>
           </div>
         </div>
-        
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 animate-pulse">
+              <div
+                key={i}
+                className="bg-white rounded-xl border border-gray-200 animate-pulse"
+              >
                 <div className="aspect-[4/3] bg-gray-200"></div>
                 <div className="p-4 space-y-3">
                   <div className="h-6 bg-gray-200 rounded"></div>
@@ -379,7 +441,7 @@ export default function EmpresasContent() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Localidad
+                {esCaba(filtro.provincia || "") ? "Barrio" : "Localidad"}
               </label>
               <select
                 value={filtro.localidad}
@@ -390,7 +452,11 @@ export default function EmpresasContent() {
                 disabled={!filtro.provincia}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
-                <option value="">Todas las localidades</option>
+                <option value="">
+                  {esCaba(filtro.provincia || "")
+                    ? "Todos los barrios"
+                    : "Todas las localidades"}
+                </option>
                 {localidades.map((loc) => (
                   <option key={loc} value={loc}>
                     {loc}

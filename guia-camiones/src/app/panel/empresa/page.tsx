@@ -18,6 +18,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
 // ✅ AGREGADO: Interfaces para tipado correcto
 interface EmpresaResponse {
@@ -148,27 +149,56 @@ export default function PanelEmpresa() {
 
   // ✅ CAMBIO: Mejorar carga de localidades
   useEffect(() => {
-    if (form.provincia) {
-      console.log("🏙️ Cargando localidades para:", form.provincia);
+    const cargarLocalidades = async () => {
+      if (!form.provincia) {
+        setLocalidades([]);
+        return;
+      }
 
-      fetch(
-        `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
-          form.provincia
-        )}&campos=id,nombre&max=1000`
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          setLocalidades(data.municipios);
-          console.log("✅ Localidades cargadas:", data.municipios.length);
-        })
-        .catch((error) => {
-          console.error("❌ Error al cargar localidades:", error);
-        });
-    } else {
-      setLocalidades([]);
-    }
+      try {
+        // ✅ Detectar si es CABA
+        if (esCaba(form.provincia)) {
+          console.log("🏙️ Cargando barrios de CABA...");
+          const barrios = getBarriosFormateados();
+          setLocalidades(barrios);
+          console.log(`✅ ${barrios.length} barrios de CABA cargados`);
+          return;
+        }
+
+        // ✅ Para el resto de provincias usar la API normal
+        console.log(`🌎 Cargando localidades para: ${form.provincia}`);
+
+        const response = await fetch(
+          `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
+            form.provincia
+          )}&campos=id,nombre&max=1000`
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const municipios = data.municipios || [];
+
+        setLocalidades(municipios);
+        console.log(
+          `✅ ${municipios.length} localidades cargadas para ${form.provincia}`
+        );
+      } catch (error) {
+        console.error("❌ Error al cargar localidades:", error);
+        setLocalidades([]);
+
+        // Fallback para CABA
+        if (esCaba(form.provincia)) {
+          console.log("🔄 Usando fallback para barrios de CABA...");
+          setLocalidades(getBarriosFormateados());
+        }
+      }
+    };
+
+    cargarLocalidades();
   }, [form.provincia]);
-
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -202,14 +232,12 @@ export default function PanelEmpresa() {
 
       console.log("✅ Respuesta del servidor:", response.data);
 
-      // ✅ CAMBIO: Actualizar form con datos devueltos por el servidor
       if (response.data && response.data.empresa) {
         const empresaActualizada = response.data.empresa;
 
         setForm((prevForm) => ({
           ...prevForm,
           slug: empresaActualizada.slug, // Actualizar slug especialmente importante
-          // Mantener otros campos actualizados también
           id: empresaActualizada.id,
           nombre: empresaActualizada.nombre,
           email: empresaActualizada.email || "",
@@ -507,7 +535,7 @@ export default function PanelEmpresa() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Localidad
+                  {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
                 </label>
                 <select
                   name="localidad"
@@ -516,7 +544,11 @@ export default function PanelEmpresa() {
                   className={inputStyles}
                   disabled={!form.provincia}
                 >
-                  <option value="">Seleccioná una localidad</option>
+                  <option value="">
+                    {esCaba(form.provincia || "")
+                      ? "Seleccioná un barrio"
+                      : "Seleccioná una localidad"}
+                  </option>
                   {localidades.map((loc) => (
                     <option key={loc.id} value={loc.nombre}>
                       {loc.nombre}

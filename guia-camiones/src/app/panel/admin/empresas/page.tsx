@@ -10,6 +10,7 @@ import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
 import { Building2, Plus, Eye, MapPin, Phone } from "lucide-react";
+import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
 // Extender Empresa para que sea compatible con DataTable
 type EmpresaWithIndex = Empresa & Record<string, unknown>;
@@ -77,13 +78,55 @@ export default function EmpresasAdminPage() {
   }, []);
 
   useEffect(() => {
-    if (form.provincia) {
-      fetch(
-        `https://apis.datos.gob.ar/georef/api/municipios?provincia=${form.provincia}&campos=id,nombre&max=1000`
-      )
-        .then((res) => res.json())
-        .then((data) => setLocalidades(data.municipios));
-    }
+    const cargarLocalidades = async () => {
+      if (!form.provincia) {
+        setLocalidades([]);
+        return;
+      }
+
+      try {
+        // ✅ Detectar si es CABA
+        if (esCaba(form.provincia)) {
+          console.log("🏙️ Cargando barrios de CABA...");
+          const barrios = getBarriosFormateados();
+          setLocalidades(barrios);
+          console.log(`✅ ${barrios.length} barrios de CABA cargados`);
+          return;
+        }
+
+        // ✅ Para el resto de provincias usar la API normal
+        console.log(`🌎 Cargando municipios de ${form.provincia}...`);
+
+        const response = await fetch(
+          `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
+            form.provincia
+          )}&campos=id,nombre&max=1000`
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const municipios = data.municipios || [];
+
+        setLocalidades(municipios);
+        console.log(
+          `✅ ${municipios.length} municipios cargados para ${form.provincia}`
+        );
+      } catch (error) {
+        console.error("❌ Error cargando localidades:", error);
+        setLocalidades([]);
+
+        // Fallback para CABA
+        if (esCaba(form.provincia)) {
+          console.log("🔄 Usando fallback para barrios de CABA...");
+          setLocalidades(getBarriosFormateados());
+        }
+      }
+    };
+
+    cargarLocalidades();
   }, [form.provincia]);
 
   const fetchEmpresas = async () => {
@@ -565,7 +608,7 @@ export default function EmpresasAdminPage() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Localidad
+                  {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
                 </label>
                 <select
                   name="localidad"
@@ -576,7 +619,11 @@ export default function EmpresasAdminPage() {
                   className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={!form.provincia}
                 >
-                  <option value="">Seleccione una localidad</option>
+                  <option value="">
+                    {esCaba(form.provincia || "")
+                      ? "Seleccione un barrio"
+                      : "Seleccione una localidad"}
+                  </option>
                   {localidades.map((loc) => (
                     <option key={loc.id} value={loc.nombre}>
                       {loc.nombre}
