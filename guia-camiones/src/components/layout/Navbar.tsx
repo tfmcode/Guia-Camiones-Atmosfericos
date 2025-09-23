@@ -279,6 +279,13 @@ const Navbar = () => {
           {/* Botones de acción Desktop */}
           <div className="hidden lg:flex items-center gap-3">
             <Link
+              href="/pozos-desagotes"
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+            >
+              🗺️ Búsqueda por Proximidad
+            </Link>
+
+            <Link
               href="/login"
               className="bg-gray-100 hover:bg-gray-200 text-[#1c2e39] px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
             >
@@ -393,6 +400,13 @@ const Navbar = () => {
                 className="block w-full text-center py-3 bg-[#1c2e39] text-white rounded-lg font-medium hover:bg-[#15253a] transition-colors"
               >
                 Registrá tu Empresa
+              </Link>
+              <Link
+                href="/pozos-desagotes"
+                onClick={() => setShowMenu(false)}
+                className="block w-full text-center py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                🗺️ Búsqueda por Proximidad
               </Link>
             </div>
           </div>
