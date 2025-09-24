@@ -11,12 +11,14 @@ interface UseGoogleMapsReturn {
   isLoaded: boolean;
   loadError: string | null;
   google: typeof google | null;
+  geocoder: google.maps.Geocoder | null;
+  placesService: google.maps.places.PlacesService | null;
 }
 
-// Extender la interfaz Window para evitar usar 'any'
 declare global {
   interface Window {
     [key: string]: unknown;
+    google: typeof google;
   }
 }
 
@@ -25,6 +27,9 @@ export const useGoogleMaps = (
 ): UseGoogleMapsReturn => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
+  const [placesService, setPlacesService] =
+    useState<google.maps.places.PlacesService | null>(null);
 
   const {
     libraries = ["places", "geometry"],
@@ -33,13 +38,17 @@ export const useGoogleMaps = (
   } = options;
 
   const loadGoogleMaps = useCallback(() => {
-    // Si ya está cargado
     if (window.google?.maps) {
       setIsLoaded(true);
+      setGeocoder(new window.google.maps.Geocoder());
+
+      // Crear un div temporal para PlacesService
+      const div = document.createElement("div");
+      setPlacesService(new window.google.maps.places.PlacesService(div));
+
       return;
     }
 
-    // Si ya hay un script cargándose
     if (document.querySelector('script[src*="maps.googleapis.com"]')) {
       return;
     }
@@ -53,20 +62,21 @@ export const useGoogleMaps = (
       return;
     }
 
-    // Crear función de callback global
     const callbackName = `initGoogleMaps${Date.now()}`;
 
-    // Función de callback tipada
     const initCallback = () => {
       setIsLoaded(true);
       setLoadError(null);
+      setGeocoder(new window.google.maps.Geocoder());
+
+      const div = document.createElement("div");
+      setPlacesService(new window.google.maps.places.PlacesService(div));
+
       delete window[callbackName];
     };
 
-    // Asignar callback al objeto window
     window[callbackName] = initCallback;
 
-    // Crear script
     const script = document.createElement("script");
     const params = new URLSearchParams({
       key: apiKey,
@@ -99,5 +109,7 @@ export const useGoogleMaps = (
     isLoaded,
     loadError,
     google: isLoaded ? window.google : null,
+    geocoder,
+    placesService,
   };
 };

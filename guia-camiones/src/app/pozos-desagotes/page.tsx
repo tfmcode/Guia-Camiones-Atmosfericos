@@ -1,150 +1,24 @@
 // src/app/pozos-desagotes/page.tsx
 
 import { Suspense } from "react";
-import EmpresasMapView from "@/components/empresas/EmpresasMapView";
+import EmpresasMapViewEnhanced from "@/components/empresas/EmpresasMapView";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { Empresa } from "@/types/empresa";
 import Link from "next/link";
+import { AlertCircle, MapPin, Truck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Datos de prueba para pozos de desagote
-const EMPRESAS_PRUEBA: Empresa[] = [
-  {
-    id: 9999,
-    nombre: "Servicios de Pozos Ciegos Buenos Aires",
-    habilitado: true,
-    slug: "pozos-ciegos-ba",
-    telefono: "11-4567-8901",
-    email: "info@pozosba.com",
-    direccion: "Av. Corrientes 1234, Ciudad Autónoma de Buenos Aires",
-    provincia: "Ciudad Autónoma de Buenos Aires",
-    localidad: "Capital Federal",
-    web: "www.pozosba.com",
-    imagenes: [],
-    destacado: true,
-    corrientes_de_residuos:
-      "Especialistas en desagote de pozos ciegos, sépticos y cámaras de inspección. Servicio 24hs con equipos modernos y personal capacitado.",
-    servicios: [
-      { id: 1, nombre: "Desagote de pozos ciegos" },
-      { id: 2, nombre: "Limpieza de pozos sépticos" },
-      { id: 3, nombre: "Camiones atmosféricos" },
-      { id: 4, nombre: "Desobstrucción de cañerías" },
-    ],
-  },
-  {
-    id: 9998,
-    nombre: "Atmosféricos del Sur SRL",
-    habilitado: true,
-    slug: "atmosfericos-sur",
-    telefono: "11-5678-9012",
-    email: "contacto@atmosfericos.com",
-    direccion: "Calle 7 N° 456, La Plata, Buenos Aires",
-    provincia: "Buenos Aires",
-    localidad: "La Plata",
-    web: "www.atmosfericos-sur.com.ar",
-    imagenes: [],
-    destacado: false,
-    corrientes_de_residuos:
-      "Vaciado y limpieza de pozos con equipos especializados. Atención en todo el Gran La Plata.",
-    servicios: [
-      { id: 5, nombre: "Vaciado de pozos" },
-      { id: 6, nombre: "Desobstrucción cloacal" },
-      { id: 7, nombre: "Limpieza de cámaras sépticas" },
-    ],
-  },
-  {
-    id: 9997,
-    nombre: "Desobstrucción Total 24HS",
-    slug: "desobstruccion-total",
-    habilitado: true,
-
-    telefono: "11-6789-0123",
-    email: "urgencias@desobstruccion24.com",
-    direccion: "Av. San Martín 789, Quilmes, Buenos Aires",
-    provincia: "Buenos Aires",
-    localidad: "Quilmes",
-    web: "www.desobstruccion24.com.ar",
-    imagenes: [],
-    destacado: true,
-    corrientes_de_residuos:
-      "Servicios de saneamiento y desobstrucción 24hs. Pozos ciegos, sépticos y pluviales.",
-    servicios: [
-      { id: 8, nombre: "Desobstrucción de cañerías" },
-      { id: 9, nombre: "Limpieza de pozos" },
-      { id: 10, nombre: "Servicio de emergencia 24hs" },
-    ],
-  },
-  {
-    id: 9996,
-    nombre: "Camiones Atmosféricos Norte",
-    slug: "atmosfericos-norte",
-    habilitado: true,
-
-    telefono: "11-7890-1234",
-    email: "info@atmosfericosnorte.com",
-    direccion: "Ruta 8 Km 35, Pilar, Buenos Aires",
-    provincia: "Buenos Aires",
-    localidad: "Pilar",
-    imagenes: [],
-    destacado: false,
-    corrientes_de_residuos:
-      "Especialistas en vaciado de pozos negros y sépticos en zona norte del Gran Buenos Aires.",
-    servicios: [
-      { id: 11, nombre: "Pozos sépticos" },
-      { id: 12, nombre: "Pozos ciegos" },
-      { id: 13, nombre: "Cámaras de inspección" },
-    ],
-  },
-  {
-    id: 9995,
-    nombre: "Saneamiento Express",
-    slug: "saneamiento-express",
-    telefono: "11-8901-2345",
-    direccion: "Av. Eva Perón 321, Morón, Buenos Aires",
-    provincia: "Buenos Aires",
-    habilitado: true,
-
-    localidad: "Morón",
-    imagenes: [],
-    destacado: false,
-    corrientes_de_residuos:
-      "Servicio rápido de desagote y limpieza para empresas y particulares.",
-    servicios: [
-      { id: 14, nombre: "Desagote industrial" },
-      { id: 15, nombre: "Limpieza de pozos domiciliarios" },
-    ],
-  },
-  {
-    id: 9994,
-    nombre: "Ecoambiente Pozos SA",
-    slug: "ecoambiente-pozos",
-    telefono: "11-9012-3456",
-    email: "ventas@ecoambiente.com.ar",
-    direccion: "Calle Belgrano 567, San Isidro, Buenos Aires",
-    provincia: "Buenos Aires",
-    habilitado: true,
-
-    localidad: "San Isidro",
-    web: "www.ecoambiente-pozos.com",
-    imagenes: [],
-    destacado: true,
-    corrientes_de_residuos:
-      "Gestión integral de residuos líquidos con tecnología avanzada y cuidado del medio ambiente.",
-    servicios: [
-      { id: 16, nombre: "Tratamiento ecológico" },
-      { id: 17, nombre: "Desagote sustentable" },
-      { id: 18, nombre: "Pozos domiciliarios" },
-    ],
-  },
-];
-
 // Función mejorada para filtrar empresas especializadas en pozos de desagote
 function filterEmpresasForPozos(empresas: Empresa[]): Empresa[] {
-  console.log(`Iniciando filtro de pozos. Total empresas: ${empresas.length}`);
+  console.log(
+    `🔍 Iniciando filtro inteligente de pozos. Total empresas: ${empresas.length}`
+  );
 
+  // Palabras clave principales para pozos de desagote
   const pozosKeywords = [
+    // Términos principales
     "pozo",
     "pozos",
     "desagote",
@@ -159,6 +33,8 @@ function filterEmpresasForPozos(empresas: Empresa[]): Empresa[] {
     "vaciado",
     "atmosferico",
     "atmosfericos",
+
+    // Equipos y servicios específicos
     "camion",
     "camiones",
     "limpieza",
@@ -168,111 +44,132 @@ function filterEmpresasForPozos(empresas: Empresa[]): Empresa[] {
     "residual",
     "bomba",
     "bombeo",
+    "aspiracion",
+
+    // Términos técnicos
+    "cañeria",
+    "cañerias",
+    "drenaje",
+    "alcantarilla",
+    "sumidero",
+    "tanque",
+    "cisterna",
+    "deposito",
+    "efluente",
+    "lodo",
+    "barro",
+
+    // Servicios relacionados
+    "hidrojet",
+    "destapacion",
+    "mantenimiento",
+    "emergencia",
+    "24hs",
+    "industrial",
+    "domiciliario",
+    "residencial",
+    "comercial",
   ];
 
-  // Palabras clave adicionales para nombres relevantes
+  // Nombres de empresas relevantes
   const nombresRelevantes = [
     "ambiental",
+    "ambientales",
     "servicios",
     "transporte",
     "ecologico",
     "residuo",
+    "residuos",
     "tratamiento",
     "gestion",
+    "integral",
+    "sanitario",
+    "limpio",
+    "limpia",
+    "verde",
+    "express",
+    "rapido",
   ];
 
   const empresasFiltradas = empresas.filter((empresa) => {
-    // Buscar en nombre de la empresa (más peso)
-    const nombreMatch = pozosKeywords.some((keyword) =>
-      empresa.nombre.toLowerCase().includes(keyword)
-    );
+    let score = 0;
 
-    // Buscar en servicios (si existen)
-    const serviciosMatch =
-      empresa.servicios?.some((servicio) =>
-        pozosKeywords.some((keyword) =>
-          servicio.nombre.toLowerCase().includes(keyword)
-        )
-      ) || false;
+    // Buscar en nombre de la empresa (peso alto)
+    const nombreLower = empresa.nombre.toLowerCase();
+    const nombreMatches = pozosKeywords.filter((keyword) =>
+      nombreLower.includes(keyword)
+    ).length;
+    score += nombreMatches * 3;
 
-    // Buscar en descripción/corrientes de residuos
-    const descripcionMatch = empresa.corrientes_de_residuos
-      ? pozosKeywords.some((keyword) =>
-          empresa.corrientes_de_residuos!.toLowerCase().includes(keyword)
-        )
-      : false;
-
-    // Buscar en dirección
-    const direccionMatch = empresa.direccion
-      ? pozosKeywords.some((keyword) =>
-          empresa.direccion.toLowerCase().includes(keyword)
-        )
-      : false;
-
-  /*   // Nombres sugestivos como fallback
-    const nombreRelevante = nombresRelevantes.some((keyword) =>
-      empresa.nombre.toLowerCase().includes(keyword)
-    );
- */
-    const match =
-      nombreMatch || serviciosMatch || descripcionMatch || direccionMatch;
-
-    if (match) {
-      const motivos = [
-        nombreMatch && "nombre",
-        serviciosMatch && "servicios",
-        descripcionMatch && "descripción",
-        direccionMatch && "dirección",
-      ]
-        .filter(Boolean)
-        .join(", ");
-
-      console.log(`Empresa filtrada: ${empresa.nombre} - Motivos: ${motivos}`);
+    // Buscar en servicios (peso alto)
+    if (empresa.servicios && empresa.servicios.length > 0) {
+      const serviciosText = empresa.servicios
+        .map((s) => s.nombre.toLowerCase())
+        .join(" ");
+      const serviciosMatches = pozosKeywords.filter((keyword) =>
+        serviciosText.includes(keyword)
+      ).length;
+      score += serviciosMatches * 3;
     }
 
-    return match;
+    // Buscar en descripción/corrientes de residuos (peso medio)
+    if (empresa.corrientes_de_residuos) {
+      const descripcionLower = empresa.corrientes_de_residuos.toLowerCase();
+      const descripcionMatches = pozosKeywords.filter((keyword) =>
+        descripcionLower.includes(keyword)
+      ).length;
+      score += descripcionMatches * 2;
+    }
+
+    // Buscar en dirección (peso bajo)
+    if (empresa.direccion) {
+      const direccionLower = empresa.direccion.toLowerCase();
+      const direccionMatches = pozosKeywords.filter((keyword) =>
+        direccionLower.includes(keyword)
+      ).length;
+      score += direccionMatches * 1;
+    }
+
+    // Nombres sugestivos como bonus
+    const nombreRelevante = nombresRelevantes.some((keyword) =>
+      nombreLower.includes(keyword)
+    );
+    if (nombreRelevante) score += 1;
+
+    // Log para debugging
+    if (score > 0) {
+      console.log(`✅ ${empresa.nombre}: score ${score}`);
+    }
+
+    return score >= 2; // Requiere al menos score 2 para ser incluida
+  });
+
+  // Ordenar por score (empresas más relevantes primero)
+  empresasFiltradas.sort((a, b) => {
+    // Primero las destacadas
+    if (a.destacado && !b.destacado) return -1;
+    if (!a.destacado && b.destacado) return 1;
+
+    // Luego por relevancia implícita (más servicios relacionados)
+    const aRelevance =
+      (a.servicios?.length || 0) + (a.corrientes_de_residuos ? 1 : 0);
+    const bRelevance =
+      (b.servicios?.length || 0) + (b.corrientes_de_residuos ? 1 : 0);
+
+    return bRelevance - aRelevance;
   });
 
   console.log(
-    `Empresas especializadas encontradas: ${empresasFiltradas.length}`
+    `✅ Filtro completado: ${empresasFiltradas.length} empresas especializadas encontradas`
   );
-
-  // Si no encontramos suficientes, agregar empresas con nombres relevantes
-  if (empresasFiltradas.length < 5) {
-    console.log(
-      `Pocas empresas encontradas, agregando empresas adicionales...`
-    );
-    const empresasAdicionales = empresas
-      .filter((e) => !empresasFiltradas.includes(e))
-      .filter((e) =>
-        nombresRelevantes.some((keyword) =>
-          e.nombre.toLowerCase().includes(keyword)
-        )
-      )
-      .slice(0, 10 - empresasFiltradas.length);
-
-    empresasAdicionales.forEach((empresa) => {
-      console.log(`Empresa adicional agregada: ${empresa.nombre}`);
-    });
-
-    return [...empresasFiltradas, ...empresasAdicionales];
-  }
 
   return empresasFiltradas;
 }
 
 async function PozosDesagotesContent() {
   try {
-    console.log("Cargando empresas para pozos de desagote...");
+    console.log("🚀 Cargando empresas para pozos de desagote...");
     const todasLasEmpresas = await getEmpresas();
-
-    console.log("DEBUG - Respuesta de getEmpresas:", {
-      tipo: typeof todasLasEmpresas,
-      esArray: Array.isArray(todasLasEmpresas),
-      longitud: Array.isArray(todasLasEmpresas)
-        ? todasLasEmpresas.length
-        : "N/A",
-    });
 
     // Validar que la respuesta sea un array
     let empresasArray: Empresa[] = [];
@@ -296,80 +193,137 @@ async function PozosDesagotesContent() {
       ) {
         empresasArray = (todasLasEmpresas as { empresas: Empresa[] }).empresas;
       } else {
-        console.error("Formato de respuesta no reconocido:", todasLasEmpresas);
+        console.error(
+          "❌ Formato de respuesta no reconocido:",
+          todasLasEmpresas
+        );
       }
     }
 
-    // DEBUG: Información sobre empresas reales
-    if (empresasArray.length > 0) {
-      console.log("DEBUG - Análisis de empresas reales:", {
-        total: empresasArray.length,
-        primeras3: empresasArray.slice(0, 3).map((e) => ({
-          nombre: e.nombre,
-          servicios: e.servicios?.length || 0,
-          tieneServicios: !!e.servicios,
-          corrientes: !!e.corrientes_de_residuos,
-        })),
-        empresasConServicios: empresasArray.filter(
-          (e) => e.servicios && e.servicios.length > 0
-        ).length,
-        empresasConDescripcion: empresasArray.filter(
-          (e) => e.corrientes_de_residuos
-        ).length,
-      });
-    } else {
-      console.warn("No se encontraron empresas reales en la respuesta");
-    }
+    console.log(`📊 Empresas cargadas: ${empresasArray.length} total`);
 
     // Filtrar empresas especializadas en pozos de desagote
-    let empresasFiltradas = filterEmpresasForPozos(empresasArray);
+    const empresasFiltradas = filterEmpresasForPozos(empresasArray);
 
-    // Agregar empresas de prueba SIEMPRE para desarrollo/testing
-    console.log("Agregando empresas de prueba para desarrollo...");
-    empresasFiltradas = [...EMPRESAS_PRUEBA, ...empresasFiltradas];
-
-    // Remover duplicados por ID si los hay
-    const empresasUnicas = empresasFiltradas.filter(
-      (empresa, index, self) =>
-        index === self.findIndex((e) => e.id === empresa.id)
-    );
-
-    console.log(
-      `Total de empresas después de agregar datos de prueba: ${empresasUnicas.length}`
-    );
-
-    if (empresasUnicas.length === 0) {
+    if (empresasFiltradas.length === 0) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto p-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🚛</span>
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-4xl mx-auto px-4 py-16">
+            {/* Header de error */}
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Truck size={32} className="text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Pozos de Desagotes Ciegos
+              </h1>
+              <p className="text-lg text-gray-600">
+                Búsqueda especializada por proximidad
+              </p>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              No se encontraron empresas especializadas
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Actualmente no hay empresas especializadas en pozos de desagote
-              registradas en tu zona.
-            </p>
-            <Link
-              href="/empresas"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Ver todas las empresas
-            </Link>
+
+            {/* Mensaje de no encontrado */}
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+              <AlertCircle size={48} className="text-amber-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                No se encontraron empresas especializadas
+              </h2>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Actualmente no hay empresas especializadas en pozos de desagote
+                registradas, pero podés buscar en nuestra guía general.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/empresas"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  <MapPin size={20} />
+                  Ver todas las empresas
+                </Link>
+
+                <Link
+                  href="/registro"
+                  className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  <Truck size={20} />
+                  Registrar mi empresa
+                </Link>
+              </div>
+            </div>
+
+            {/* Información adicional */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="font-semibold text-blue-900 mb-2">
+                  ¿Tenés una empresa de desagotes?
+                </h3>
+                <p className="text-blue-800 text-sm mb-4">
+                  Registrá tu empresa gratis y aparecer en los resultados de
+                  búsqueda.
+                </p>
+                <Link
+                  href="/registro"
+                  className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                >
+                  Registrarme ahora →
+                </Link>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <h3 className="font-semibold text-green-900 mb-2">
+                  ¿Necesitás este servicio?
+                </h3>
+                <p className="text-green-800 text-sm mb-4">
+                  Explorá nuestra guía completa de empresas ambientales.
+                </p>
+                <Link
+                  href="/empresas"
+                  className="text-green-600 hover:text-green-700 font-medium text-sm"
+                >
+                  Ver empresas →
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       );
     }
 
-    return <EmpresasMapView empresas={empresasUnicas} />;
+    // Retornar el componente mejorado con las empresas filtradas
+    return <EmpresasMapViewEnhanced empresas={empresasFiltradas} />;
   } catch (error) {
-    console.error("Error cargando empresas:", error);
+    console.error("❌ Error cargando empresas:", error);
 
-    // En caso de error, mostrar solo empresas de prueba
-    console.log("Fallback: Mostrando solo empresas de prueba debido al error");
-    return <EmpresasMapView empresas={EMPRESAS_PRUEBA} />;
+    // En caso de error, mostrar mensaje amigable
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Error al cargar empresas
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Hubo un problema al cargar las empresas. Por favor, intentá
+            nuevamente en unos momentos.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Reintentar
+            </button>
+            <Link
+              href="/empresas"
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              Ver guía general
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 }
 
@@ -377,12 +331,43 @@ export default function PozosDesagotesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">
-              Cargando empresas especializadas en pozos de desagote...
-            </p>
+        <div className="min-h-screen bg-gray-50">
+          {/* Loading más detallado */}
+          <div className="max-w-4xl mx-auto px-4 py-16">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Truck size={32} className="text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Pozos de Desagotes Ciegos
+              </h1>
+              <p className="text-lg text-gray-600">
+                Búsqueda especializada por proximidad
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600 font-medium mb-2">
+                Cargando empresas especializadas...
+              </p>
+              <p className="text-sm text-gray-500">
+                Analizando base de datos y preparando búsqueda inteligente
+              </p>
+            </div>
+
+            {/* Skeleton cards */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[1, 2].map((i) => (
+                <div key={i} className="bg-white rounded-lg p-6 shadow-sm">
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                    <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       }
@@ -392,12 +377,40 @@ export default function PozosDesagotesPage() {
   );
 }
 
-// Metadata para SEO
+// Metadata mejorada para SEO
 export const metadata = {
   title:
-    "Pozos de Desagotes Ciegos - Búsqueda por Proximidad | Guía de Camiones Atmosféricos",
+    "Pozos de Desagotes Ciegos - Búsqueda Inteligente por Proximidad | Guía de Camiones Atmosféricos",
   description:
-    "Encuentra empresas especializadas en desagote de pozos ciegos cerca de tu ubicación. Búsqueda inteligente con mapa interactivo y ordenamiento por proximidad.",
-  keywords:
-    "pozos ciegos, desagote, camiones atmosféricos, vaciado pozos, empresas desagote, servicios ambientales",
+    "Encuentra empresas especializadas en desagote de pozos ciegos cerca de tu ubicación. Búsqueda inteligente con Google Maps, ordenamiento por proximidad y geocodificación automática.",
+  keywords: [
+    "pozos ciegos",
+    "desagote",
+    "camiones atmosféricos",
+    "vaciado pozos",
+    "empresas desagote",
+    "servicios ambientales",
+    "proximidad",
+    "geolocalización",
+    "desobstrucción",
+    "saneamiento",
+    "pozos sépticos",
+    "limpieza pozos",
+    "hidrojet",
+    "emergencias 24hs",
+    "residuos líquidos",
+  ].join(", "),
+  openGraph: {
+    title: "Pozos de Desagotes Ciegos - Búsqueda por Proximidad",
+    description:
+      "Encuentra empresas especializadas cerca de tu ubicación con nuestra búsqueda inteligente.",
+    images: [
+      {
+        url: "/img/portada.png",
+        width: 1200,
+        height: 630,
+        alt: "Búsqueda de empresas de desagote por proximidad",
+      },
+    ],
+  },
 };
