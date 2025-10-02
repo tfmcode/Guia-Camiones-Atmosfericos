@@ -1,22 +1,25 @@
 // src/app/pozos-desagotes/page.tsx
-
 import { Suspense } from "react";
-import EmpresasMapViewEnhanced from "@/components/empresas/EmpresasMapView";
 import { getEmpresas } from "@/lib/api/empresaService";
-import type { Empresa } from "@/types/empresa";
+import type { EmpresaWithCoords, Empresa } from "@/types/empresa";
 import Link from "next/link";
 import { AlertCircle, MapPin, Truck } from "lucide-react";
 
+// Importar el wrapper cliente del mapa (maneja el dynamic ssr:false internamente)
+import OptimizedPozosMapViewClient from "@/components/maps/OptimizedPozosMapViewClient";
+
+// Configuración de Next.js para la página
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Función mejorada para filtrar empresas especializadas en pozos de desagote
-function filterEmpresasForPozos(empresas: Empresa[]): Empresa[] {
+// Función para filtrar empresas especializadas en pozos de desagote
+function filterEmpresasForPozos(
+  empresas: EmpresaWithCoords[]
+): EmpresaWithCoords[] {
   console.log(
     `🔍 Iniciando filtro inteligente de pozos. Total empresas: ${empresas.length}`
   );
 
-  // Palabras clave principales para pozos de desagote
   const pozosKeywords = [
     // Términos principales
     "pozo",
@@ -71,7 +74,6 @@ function filterEmpresasForPozos(empresas: Empresa[]): Empresa[] {
     "comercial",
   ];
 
-  // Nombres de empresas relevantes
   const nombresRelevantes = [
     "ambiental",
     "ambientales",
@@ -166,38 +168,63 @@ function filterEmpresasForPozos(empresas: Empresa[]): Empresa[] {
   return empresasFiltradas;
 }
 
+// Componente de loading para el mapa
+function MapLoadingState() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200 p-4">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Pozos de Desagotes - Búsqueda por Proximidad
+          </h1>
+          <div className="animate-pulse">
+            <div className="h-12 bg-gray-200 rounded mb-4"></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-gray-200 h-20 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando mapa...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Tipo para la respuesta de la API
+interface ApiResponse {
+  data?: Empresa[];
+  empresas?: Empresa[];
+  [key: string]: unknown;
+}
+
+// Componente de contenido principal (Server Component)
 async function PozosDesagotesContent() {
   try {
     console.log("🚀 Cargando empresas para pozos de desagote...");
     const todasLasEmpresas = await getEmpresas();
 
     // Validar que la respuesta sea un array
-    let empresasArray: Empresa[] = [];
+    let empresasArray: EmpresaWithCoords[] = [];
 
     if (Array.isArray(todasLasEmpresas)) {
-      empresasArray = todasLasEmpresas;
+      empresasArray = todasLasEmpresas as EmpresaWithCoords[];
     } else if (
       todasLasEmpresas &&
       typeof todasLasEmpresas === "object" &&
-      !Array.isArray(todasLasEmpresas)
+      "data" in todasLasEmpresas &&
+      Array.isArray((todasLasEmpresas as ApiResponse).data)
     ) {
-      // Si la respuesta es un objeto, intentar extraer el array
-      if (
-        Object.prototype.hasOwnProperty.call(todasLasEmpresas, "data") &&
-        Array.isArray((todasLasEmpresas as { data?: unknown }).data)
-      ) {
-        empresasArray = (todasLasEmpresas as { data: Empresa[] }).data;
-      } else if (
-        Object.prototype.hasOwnProperty.call(todasLasEmpresas, "empresas") &&
-        Array.isArray((todasLasEmpresas as { empresas?: unknown }).empresas)
-      ) {
-        empresasArray = (todasLasEmpresas as { empresas: Empresa[] }).empresas;
-      } else {
-        console.error(
-          "❌ Formato de respuesta no reconocido:",
-          todasLasEmpresas
-        );
-      }
+      empresasArray = (todasLasEmpresas as ApiResponse)
+        .data as EmpresaWithCoords[];
+    } else {
+      console.error("❌ Formato de respuesta no reconocido:", todasLasEmpresas);
     }
 
     console.log(`📊 Empresas cargadas: ${empresasArray.length} total`);
@@ -259,7 +286,7 @@ async function PozosDesagotesContent() {
                   ¿Tenés una empresa de desagotes?
                 </h3>
                 <p className="text-blue-800 text-sm mb-4">
-                  Registrá tu empresa gratis y aparecer en los resultados de
+                  Registrá tu empresa gratis y aparecé en los resultados de
                   búsqueda.
                 </p>
                 <Link
@@ -290,12 +317,15 @@ async function PozosDesagotesContent() {
       );
     }
 
-    // Retornar el componente mejorado con las empresas filtradas
-    return <EmpresasMapViewEnhanced empresas={empresasFiltradas} />;
+    console.log("Empresas filtradas a pasar:", empresasFiltradas);
+    console.log("Es array?:", Array.isArray(empresasFiltradas));
+
+    // Retornar el componente del mapa con las empresas filtradas (Client Component)
+    return <OptimizedPozosMapViewClient empresas={empresasFiltradas} />;
   } catch (error) {
     console.error("❌ Error cargando empresas:", error);
 
-    // En caso de error, mostrar mensaje amigable
+    // En caso de error, mostrar mensaje amigable (sin onClick del lado server)
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
@@ -308,12 +338,12 @@ async function PozosDesagotesContent() {
             nuevamente en unos momentos.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => window.location.reload()}
+            <Link
+              href="/pozos-desagotes"
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Reintentar
-            </button>
+            </Link>
             <Link
               href="/empresas"
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
@@ -329,49 +359,7 @@ async function PozosDesagotesContent() {
 
 export default function PozosDesagotesPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50">
-          {/* Loading más detallado */}
-          <div className="max-w-4xl mx-auto px-4 py-16">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Truck size={32} className="text-blue-600" />
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                Pozos de Desagotes Ciegos
-              </h1>
-              <p className="text-lg text-gray-600">
-                Búsqueda especializada por proximidad
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 font-medium mb-2">
-                Cargando empresas especializadas...
-              </p>
-              <p className="text-sm text-gray-500">
-                Analizando base de datos y preparando búsqueda inteligente
-              </p>
-            </div>
-
-            {/* Skeleton cards */}
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[1, 2].map((i) => (
-                <div key={i} className="bg-white rounded-lg p-6 shadow-sm">
-                  <div className="animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
-                    <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<MapLoadingState />}>
       <PozosDesagotesContent />
     </Suspense>
   );

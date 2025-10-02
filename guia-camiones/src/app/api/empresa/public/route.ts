@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
-  // ✅ CAMBIO: Headers para evitar caché del navegador y CDN
   const headers = {
     "Cache-Control": "no-cache, no-store, must-revalidate",
     Pragma: "no-cache",
@@ -15,31 +14,44 @@ export async function GET() {
   };
 
   try {
-    console.log("🔍 [API Public] Cargando empresas públicas...");
+    console.log("🔍 [API Public] Cargando empresas con coordenadas...");
 
-    // ✅ CAMBIO: Query mejorado con más campos necesarios
+    // ✅ NUEVO: Query incluye lat/lng para evitar geocodificación
     const empresasQuery = `
       SELECT 
         e.id, e.nombre, e.provincia, e.localidad, e.imagenes, 
         e.destacado, e.slug, e.telefono, e.email, e.direccion,
-        e.web, e.corrientes_de_residuos, e.habilitado, e.fecha_creacion
+        e.web, e.corrientes_de_residuos, e.habilitado, e.fecha_creacion,
+        e.lat, e.lng,  -- ✅ AGREGADO: Coordenadas cacheadas
+        -- ✅ AGREGADO: Indicador si necesita geocodificación
+        CASE 
+          WHEN e.lat IS NULL OR e.lng IS NULL THEN true 
+          ELSE false 
+        END as needs_geocoding
       FROM empresa e
       WHERE e.habilitado = true
-      ORDER BY e.fecha_creacion DESC
+      ORDER BY 
+        e.destacado DESC,  -- Destacadas primero
+        e.fecha_creacion DESC
     `;
+
     const { rows: empresas } = await pool.query(empresasQuery);
 
+    console.log(`📊 [API Public] ${empresas.length} empresas cargadas`);
+
+    // ✅ NUEVO: Estadísticas de geocodificación
+    const needsGeocoding = empresas.filter((e) => e.needs_geocoding).length;
+    const hasCoordinates = empresas.filter((e) => !e.needs_geocoding).length;
+
     console.log(
-      `📊 [API Public] Encontradas ${empresas.length} empresas habilitadas`
+      `🗺️ [API Public] Geocodificación: ${hasCoordinates} completas, ${needsGeocoding} pendientes`
     );
 
-    // Si no hay empresas, devolver array vacío con headers
     if (empresas.length === 0) {
-      console.log("⚠️ [API Public] No hay empresas habilitadas");
       return NextResponse.json([], { headers });
     }
 
-    // Obtener todos los servicios asociados a las empresas de un solo query
+    // Obtener servicios (igual que antes)
     const empresaIds = empresas.map((e) => e.id);
     const serviciosQuery = `
       SELECT es.empresa_id, s.id, s.nombre
@@ -50,11 +62,6 @@ export async function GET() {
     `;
     const { rows: servicios } = await pool.query(serviciosQuery, [empresaIds]);
 
-    console.log(
-      `🔧 [API Public] Cargados ${servicios.length} servicios para las empresas`
-    );
-
-    // ✅ CAMBIO: Mapear servicios con mejor logging
     const empresasConServicios = empresas.map((empresa) => {
       const serviciosEmpresa = servicios
         .filter((s) => s.empresa_id === empresa.id)
@@ -63,53 +70,40 @@ export async function GET() {
           nombre: s.nombre,
         }));
 
-      // Log detallado para debugging
-      console.log(
-        `📋 [API Public] Empresa ${empresa.nombre}: ${
-          serviciosEmpresa.length
-        } servicios, ${empresa.imagenes?.length || 0} imágenes`
-      );
-
       return {
         ...empresa,
         servicios: serviciosEmpresa,
       };
     });
 
-    console.log(
-      `✅ [API Public] Devolviendo ${empresasConServicios.length} empresas completas`
-    );
-
-    // ✅ CAMBIO: Agregar timestamp para debugging
+    // ✅ NUEVO: Metadata sobre geocodificación en desarrollo
     const response = {
-      timestamp: new Date().toISOString(),
-      count: empresasConServicios.length,
       data: empresasConServicios,
+      meta:
+        process.env.NODE_ENV === "development"
+          ? {
+              timestamp: new Date().toISOString(),
+              total: empresasConServicios.length,
+              geocoding_status: {
+                complete: hasCoordinates,
+                pending: needsGeocoding,
+                percentage: Math.round(
+                  (hasCoordinates / empresas.length) * 100
+                ),
+              },
+            }
+          : undefined,
     };
 
-    // ✅ CAMBIO: En desarrollo, devolver con metadata. En producción, solo los datos
-    if (process.env.NODE_ENV === "development") {
-      return NextResponse.json(response, { headers });
-    } else {
-      return NextResponse.json(empresasConServicios, { headers });
-    }
+    return NextResponse.json(
+      process.env.NODE_ENV === "development" ? response : empresasConServicios,
+      { headers }
+    );
   } catch (error) {
-    console.error("❌ [API Public] Error al obtener empresas públicas:", error);
-
-    // ✅ CAMBIO: Mejor manejo de errores con más información
-    const errorResponse = {
-      message: "Error al obtener empresas",
-      timestamp: new Date().toISOString(),
-      // Solo incluir detalles del error en desarrollo
-      ...(process.env.NODE_ENV === "development" && {
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-      }),
-    };
-
-    return NextResponse.json(errorResponse, {
-      status: 500,
-      headers,
-    });
+    console.error("❌ [API Public] Error:", error);
+    return NextResponse.json(
+      { message: "Error al obtener empresas" },
+      { status: 500, headers }
+    );
   }
 }

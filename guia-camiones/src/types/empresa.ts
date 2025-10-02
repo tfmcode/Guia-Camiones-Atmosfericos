@@ -1,3 +1,4 @@
+// src/types/empresa.ts - ACTUALIZADO
 import type { Servicio } from "./servicio";
 
 export interface Empresa {
@@ -9,7 +10,7 @@ export interface Empresa {
   direccion: string;
   provincia?: string;
   localidad?: string;
-  servicios?: Servicio[]; // ✅ CAMBIADO de number[] a Servicio[]
+  servicios?: Servicio[];
   imagenes: string[];
   destacado: boolean;
   habilitado: boolean;
@@ -17,6 +18,9 @@ export interface Empresa {
   corrientes_de_residuos?: string;
   usuarioId?: number | null;
   creado_en?: string;
+  // ✅ AGREGADO: Coordenadas para geocodificación
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface EmpresaInput {
@@ -26,10 +30,19 @@ export interface EmpresaInput {
   direccion: string;
   provincia?: string;
   localidad?: string;
-  servicios?: number[]; // ✅ Para creación/edición sigue siendo number[]
+  servicios?: number[];
   imagenes: string[];
   destacado: boolean;
   habilitado: boolean;
   web?: string;
   corrientes_de_residuos?: string;
+  // ✅ AGREGADO: Coordenadas opcionales para input
+  lat?: number | null;
+  lng?: number | null;
+}
+
+// ✅ AGREGADO: Tipo específico para empresas con coordenadas y distancia
+export interface EmpresaWithCoords extends Empresa {
+  distancia?: number;
+  distanciaTexto?: string;
 }
