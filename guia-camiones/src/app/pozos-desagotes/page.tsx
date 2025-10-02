@@ -12,16 +12,15 @@ import OptimizedPozosMapViewClient from "@/components/maps/OptimizedPozosMapView
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Función para filtrar empresas especializadas en pozos de desagote
+// ✅ FUNCIÓN CORREGIDA - Score mínimo de 1
 function filterEmpresasForPozos(
   empresas: EmpresaWithCoords[]
 ): EmpresaWithCoords[] {
   console.log(
-    `🔍 Iniciando filtro inteligente de pozos. Total empresas: ${empresas.length}`
+    `🔍 Iniciando filtro de pozos. Total empresas: ${empresas.length}`
   );
 
   const pozosKeywords = [
-    // Términos principales
     "pozo",
     "pozos",
     "desagote",
@@ -36,8 +35,6 @@ function filterEmpresasForPozos(
     "vaciado",
     "atmosferico",
     "atmosfericos",
-
-    // Equipos y servicios específicos
     "camion",
     "camiones",
     "limpieza",
@@ -48,8 +45,6 @@ function filterEmpresasForPozos(
     "bomba",
     "bombeo",
     "aspiracion",
-
-    // Términos técnicos
     "cañeria",
     "cañerias",
     "drenaje",
@@ -61,8 +56,6 @@ function filterEmpresasForPozos(
     "efluente",
     "lodo",
     "barro",
-
-    // Servicios relacionados
     "hidrojet",
     "destapacion",
     "mantenimiento",
@@ -143,7 +136,8 @@ function filterEmpresasForPozos(
       console.log(`✅ ${empresa.nombre}: score ${score}`);
     }
 
-    return score >= 2; // Requiere al menos score 2 para ser incluida
+    // ✅ CAMBIO CRÍTICO: Score mínimo de 1 (era 2)
+    return score >= 1;
   });
 
   // Ordenar por score (empresas más relevantes primero)
@@ -162,7 +156,7 @@ function filterEmpresasForPozos(
   });
 
   console.log(
-    `✅ Filtro completado: ${empresasFiltradas.length} empresas especializadas encontradas`
+    `✅ Filtro completado: ${empresasFiltradas.length} empresas encontradas`
   );
 
   return empresasFiltradas;
@@ -236,7 +230,6 @@ async function PozosDesagotesContent() {
       return (
         <div className="min-h-screen bg-gray-50">
           <div className="max-w-4xl mx-auto px-4 py-16">
-            {/* Header de error */}
             <div className="text-center mb-8">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Truck size={32} className="text-blue-600" />
@@ -249,7 +242,6 @@ async function PozosDesagotesContent() {
               </p>
             </div>
 
-            {/* Mensaje de no encontrado */}
             <div className="bg-white rounded-xl shadow-lg p-8 text-center">
               <AlertCircle size={48} className="text-amber-500 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -279,7 +271,6 @@ async function PozosDesagotesContent() {
               </div>
             </div>
 
-            {/* Información adicional */}
             <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                 <h3 className="font-semibold text-blue-900 mb-2">
@@ -317,15 +308,13 @@ async function PozosDesagotesContent() {
       );
     }
 
-    console.log("Empresas filtradas a pasar:", empresasFiltradas);
-    console.log("Es array?:", Array.isArray(empresasFiltradas));
+    console.log("Empresas filtradas a pasar:", empresasFiltradas.length);
 
-    // Retornar el componente del mapa con las empresas filtradas (Client Component)
+    // Retornar el componente del mapa con las empresas filtradas
     return <OptimizedPozosMapViewClient empresas={empresasFiltradas} />;
   } catch (error) {
     console.error("❌ Error cargando empresas:", error);
 
-    // En caso de error, mostrar mensaje amigable (sin onClick del lado server)
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">

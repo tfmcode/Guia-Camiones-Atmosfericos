@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-// ✅ CAMBIO PRINCIPAL: Forzar revalidación y evitar caché
+// ✅ Forzar revalidación y evitar caché
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -16,14 +16,16 @@ export async function GET() {
   try {
     console.log("🔍 [API Public] Cargando empresas con coordenadas...");
 
-    // ✅ NUEVO: Query incluye lat/lng para evitar geocodificación
+    // ✅ Query con CAST explícito para coordenadas
     const empresasQuery = `
       SELECT 
         e.id, e.nombre, e.provincia, e.localidad, e.imagenes, 
         e.destacado, e.slug, e.telefono, e.email, e.direccion,
         e.web, e.corrientes_de_residuos, e.habilitado, e.fecha_creacion,
-        e.lat, e.lng,  -- ✅ AGREGADO: Coordenadas cacheadas
-        -- ✅ AGREGADO: Indicador si necesita geocodificación
+        -- ✅ IMPORTANTE: CAST a DOUBLE PRECISION para asegurar tipo numérico
+        CAST(e.lat AS DOUBLE PRECISION) as lat,
+        CAST(e.lng AS DOUBLE PRECISION) as lng,
+        -- ✅ Indicador si necesita geocodificación
         CASE 
           WHEN e.lat IS NULL OR e.lng IS NULL THEN true 
           ELSE false 
@@ -31,7 +33,7 @@ export async function GET() {
       FROM empresa e
       WHERE e.habilitado = true
       ORDER BY 
-        e.destacado DESC,  -- Destacadas primero
+        e.destacado DESC,
         e.fecha_creacion DESC
     `;
 
@@ -39,7 +41,7 @@ export async function GET() {
 
     console.log(`📊 [API Public] ${empresas.length} empresas cargadas`);
 
-    // ✅ NUEVO: Estadísticas de geocodificación
+    // ✅ Estadísticas de geocodificación
     const needsGeocoding = empresas.filter((e) => e.needs_geocoding).length;
     const hasCoordinates = empresas.filter((e) => !e.needs_geocoding).length;
 
@@ -51,7 +53,7 @@ export async function GET() {
       return NextResponse.json([], { headers });
     }
 
-    // Obtener servicios (igual que antes)
+    // Obtener servicios
     const empresaIds = empresas.map((e) => e.id);
     const serviciosQuery = `
       SELECT es.empresa_id, s.id, s.nombre
@@ -62,6 +64,7 @@ export async function GET() {
     `;
     const { rows: servicios } = await pool.query(serviciosQuery, [empresaIds]);
 
+    // ✅ Mapear empresas con servicios Y parsear coordenadas explícitamente
     const empresasConServicios = empresas.map((empresa) => {
       const serviciosEmpresa = servicios
         .filter((s) => s.empresa_id === empresa.id)
@@ -72,11 +75,14 @@ export async function GET() {
 
       return {
         ...empresa,
+        // ✅ CRÍTICO: Parsear lat/lng como números o null
+        lat: empresa.lat != null ? parseFloat(empresa.lat) : null,
+        lng: empresa.lng != null ? parseFloat(empresa.lng) : null,
         servicios: serviciosEmpresa,
       };
     });
 
-    // ✅ NUEVO: Metadata sobre geocodificación en desarrollo
+    // Metadata para desarrollo
     const response = {
       data: empresasConServicios,
       meta:
@@ -87,9 +93,10 @@ export async function GET() {
               geocoding_status: {
                 complete: hasCoordinates,
                 pending: needsGeocoding,
-                percentage: Math.round(
-                  (hasCoordinates / empresas.length) * 100
-                ),
+                percentage:
+                  empresas.length > 0
+                    ? Math.round((hasCoordinates / empresas.length) * 100)
+                    : 0,
               },
             }
           : undefined,
