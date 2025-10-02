@@ -33,6 +33,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Guía C.A." />
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,geometry&language=es&region=AR`}
+          strategy="beforeInteractive"
+        />
 
         <Script id="gtm-head" strategy="afterInteractive">
           {`

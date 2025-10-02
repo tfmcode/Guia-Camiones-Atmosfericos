@@ -1,6 +1,13 @@
 // src/components/maps/OptimizedAddressSearch.tsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { MapPin, Search, Navigation, X, Loader2 } from "lucide-react";
+import {
+  MapPin,
+  Search,
+  Navigation,
+  X,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 
 interface AddressSearchProps {
   onLocationSelect: (coords: {
@@ -26,8 +33,8 @@ export default function OptimizedAddressSearch({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [geolocating, setGeolocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGoogleReady, setIsGoogleReady] = useState(false); // ✅ NUEVO
 
-  // Referencias para optimización
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteService =
     useRef<google.maps.places.AutocompleteService | null>(null);
@@ -39,34 +46,79 @@ export default function OptimizedAddressSearch({
     Map<string, google.maps.places.AutocompletePrediction[]>
   >(new Map());
 
-  // Inicializar servicios de Google
+  // ✅ NUEVO: Verificar si Google Maps está disponible
   useEffect(() => {
-    if (typeof google !== "undefined" && google.maps) {
-      autocompleteService.current =
-        new google.maps.places.AutocompleteService();
-      const div = document.createElement("div");
-      placesService.current = new google.maps.places.PlacesService(div);
-      sessionToken.current = new google.maps.places.AutocompleteSessionToken();
+    const checkGoogleMaps = () => {
+      if (typeof google !== "undefined" && google.maps) {
+        console.log("✅ Google Maps está listo");
+        setIsGoogleReady(true);
+        return true;
+      }
+      return false;
+    };
 
-      console.log("✅ Servicios de Google Maps inicializados");
+    // Verificar inmediatamente
+    if (checkGoogleMaps()) return;
+
+    // Si no está listo, esperar
+    const interval = setInterval(() => {
+      if (checkGoogleMaps()) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Timeout después de 10 segundos
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      if (!isGoogleReady) {
+        setError("Error cargando Google Maps. Recarga la página.");
+        console.error("❌ Google Maps no se cargó en 10 segundos");
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isGoogleReady]);
+
+  // ✅ MODIFICADO: Inicializar servicios solo cuando Google esté listo
+  useEffect(() => {
+    if (isGoogleReady && !autocompleteService.current) {
+      try {
+        autocompleteService.current =
+          new google.maps.places.AutocompleteService();
+        const div = document.createElement("div");
+        placesService.current = new google.maps.places.PlacesService(div);
+        sessionToken.current =
+          new google.maps.places.AutocompleteSessionToken();
+        console.log("✅ Servicios de Google Maps inicializados");
+      } catch (error) {
+        console.error(
+          "❌ Error inicializando servicios de Google Maps:",
+          error
+        );
+        setError("Error inicializando Google Maps");
+      }
     }
-  }, []);
+  }, [isGoogleReady]);
 
-  // Función para obtener detalles de un lugar (consume 1 sesión)
+  // Función para obtener detalles de un lugar
   const getPlaceDetails = useCallback(
     (placeId: string, description: string) => {
-      if (!placesService.current) return;
+      if (!placesService.current || !isGoogleReady) {
+        setError("Servicios de Google Maps no disponibles");
+        return;
+      }
 
       setIsLoading(true);
       setError(null);
 
-      // Construir request con manejo correcto del sessionToken
       const request: google.maps.places.PlaceDetailsRequest = {
         placeId,
         fields: ["geometry", "formatted_address"],
       };
 
-      // Agregar sessionToken solo si existe
       if (sessionToken.current) {
         request.sessionToken = sessionToken.current;
       }
@@ -81,93 +133,92 @@ export default function OptimizedAddressSearch({
             address: place.formatted_address || description,
           };
 
-          // Resetear el token de sesión (importante para el billing)
           sessionToken.current =
             new google.maps.places.AutocompleteSessionToken();
-
           onLocationSelect(coords);
           setQuery(coords.address);
           setShowSuggestions(false);
           setSuggestions([]);
-
           console.log("📍 Lugar seleccionado:", coords);
         } else {
           setError("No se pudo obtener la ubicación");
         }
       });
     },
-    [onLocationSelect]
+    [onLocationSelect, isGoogleReady]
   );
 
   // Búsqueda con debounce y caché
-  const searchPlaces = useCallback((input: string) => {
-    if (!input || !autocompleteService.current || input.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    // Verificar caché primero
-    const cached = searchCache.current.get(input.toLowerCase());
-    if (cached) {
-      console.log("💾 Sugerencias desde caché:", input);
-      setSuggestions(cached);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    // Construir request
-    const request: google.maps.places.AutocompletionRequest = {
-      input,
-      componentRestrictions: { country: "ar" }, // Restringir a Argentina
-      types: ["geocode", "establishment"], // Solo direcciones y lugares
-      bounds: new google.maps.LatLngBounds(
-        new google.maps.LatLng(-55.0, -73.5), // Sur-Oeste Argentina
-        new google.maps.LatLng(-22.0, -53.5) // Norte-Este Argentina
-      ),
-    };
-
-    // Agregar sessionToken solo si existe
-    if (sessionToken.current) {
-      request.sessionToken = sessionToken.current;
-    }
-
-    autocompleteService.current.getPlacePredictions(
-      request,
-      (predictions, status) => {
-        setIsLoading(false);
-
-        if (status === "OK" && predictions) {
-          // Limitar a 5 sugerencias para reducir costo
-          const limitedPredictions = predictions.slice(0, 5);
-          setSuggestions(limitedPredictions);
-
-          // Guardar en caché
-          searchCache.current.set(input.toLowerCase(), limitedPredictions);
-
-          // Limpiar caché antigua si es muy grande
-          if (searchCache.current.size > 50) {
-            const firstKey = searchCache.current.keys().next().value;
-            if (firstKey) {
-              searchCache.current.delete(firstKey);
-            }
-          }
-
-          console.log(
-            `🔍 ${limitedPredictions.length} sugerencias encontradas`
-          );
-        } else if (status === "ZERO_RESULTS") {
-          setSuggestions([]);
-          setError("No se encontraron resultados");
-        } else {
-          setSuggestions([]);
-          setError("Error buscando direcciones");
-        }
+  const searchPlaces = useCallback(
+    (input: string) => {
+      if (
+        !input ||
+        !autocompleteService.current ||
+        input.length < 3 ||
+        !isGoogleReady
+      ) {
+        setSuggestions([]);
+        return;
       }
-    );
-  }, []);
+
+      // Verificar caché
+      const cached = searchCache.current.get(input.toLowerCase());
+      if (cached) {
+        console.log("💾 Sugerencias desde caché:", input);
+        setSuggestions(cached);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      const request: google.maps.places.AutocompletionRequest = {
+        input,
+        componentRestrictions: { country: "ar" },
+        types: ["geocode", "establishment"],
+        bounds: new google.maps.LatLngBounds(
+          new google.maps.LatLng(-55.0, -73.5),
+          new google.maps.LatLng(-22.0, -53.5)
+        ),
+      };
+
+      if (sessionToken.current) {
+        request.sessionToken = sessionToken.current;
+      }
+
+      autocompleteService.current.getPlacePredictions(
+        request,
+        (predictions, status) => {
+          setIsLoading(false);
+
+          if (status === "OK" && predictions) {
+            const limitedPredictions = predictions.slice(0, 5);
+            setSuggestions(limitedPredictions);
+            searchCache.current.set(input.toLowerCase(), limitedPredictions);
+
+            if (searchCache.current.size > 50) {
+              const firstKey = searchCache.current.keys().next().value;
+              if (firstKey) {
+                searchCache.current.delete(firstKey);
+              }
+            }
+
+            console.log(
+              `🔍 ${limitedPredictions.length} sugerencias encontradas`
+            );
+          } else if (status === "ZERO_RESULTS") {
+            setSuggestions([]);
+            setError("No se encontraron resultados");
+          } else {
+            setSuggestions([]);
+            setError("Error buscando direcciones");
+          }
+        }
+      );
+    },
+    [isGoogleReady]
+  );
 
   // Debounce para la búsqueda
   const handleInputChange = useCallback(
@@ -183,12 +234,10 @@ export default function OptimizedAddressSearch({
 
       setShowSuggestions(true);
 
-      // Cancelar búsqueda anterior
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
 
-      // Esperar 300ms antes de buscar (reduce llamadas a la API)
       debounceTimer.current = setTimeout(() => {
         searchPlaces(value);
       }, 300);
@@ -203,6 +252,11 @@ export default function OptimizedAddressSearch({
       return;
     }
 
+    if (!isGoogleReady) {
+      setError("Google Maps no está listo aún");
+      return;
+    }
+
     setGeolocating(true);
     setError(null);
 
@@ -213,7 +267,6 @@ export default function OptimizedAddressSearch({
           lng: position.coords.longitude,
         };
 
-        // Geocodificación inversa para obtener la dirección
         try {
           const geocoder = new google.maps.Geocoder();
           const response = await geocoder.geocode({ location: coords });
@@ -256,7 +309,7 @@ export default function OptimizedAddressSearch({
         maximumAge: 0,
       }
     );
-  }, [onLocationSelect]);
+  }, [onLocationSelect, isGoogleReady]);
 
   // Navegación con teclado
   const handleKeyDown = useCallback(
@@ -299,6 +352,33 @@ export default function OptimizedAddressSearch({
     };
   }, []);
 
+  // ✅ NUEVO: Mostrar mensaje mientras Google Maps se carga
+  if (!isGoogleReady) {
+    return (
+      <div className={`relative ${className}`}>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              disabled
+              placeholder="Cargando Google Maps..."
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+            />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+              <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+            </div>
+          </div>
+          <button
+            disabled
+            className="px-4 py-3 rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed"
+          >
+            <Navigation className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative ${className}`}>
       <div className="flex gap-2">
@@ -314,10 +394,6 @@ export default function OptimizedAddressSearch({
             placeholder={placeholder}
             className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             aria-label="Buscar dirección"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls="address-suggestions"
-            aria-expanded={showSuggestions}
           />
 
           {/* Icono de búsqueda */}
@@ -340,7 +416,6 @@ export default function OptimizedAddressSearch({
                 inputRef.current?.focus();
               }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              aria-label="Limpiar búsqueda"
             >
               <X className="w-5 h-5" />
             </button>
@@ -357,7 +432,6 @@ export default function OptimizedAddressSearch({
               : "bg-blue-600 text-white hover:bg-blue-700"
           }`}
           title="Usar mi ubicación actual"
-          aria-label="Usar mi ubicación actual"
         >
           {geolocating ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -369,25 +443,20 @@ export default function OptimizedAddressSearch({
 
       {/* Mensaje de error */}
       {error && (
-        <div className="absolute mt-2 w-full bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 z-40">
+        <div className="absolute mt-2 w-full bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 z-40 flex items-center gap-2">
+          <AlertCircle size={16} />
           {error}
         </div>
       )}
 
       {/* Lista de sugerencias */}
       {showSuggestions && suggestions.length > 0 && (
-        <ul
-          id="address-suggestions"
-          className="absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
-          role="listbox"
-        >
+        <ul className="absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-60 overflow-y-auto">
           {suggestions.map((suggestion, index) => {
             const parts = suggestion.structured_formatting;
             return (
               <li
                 key={suggestion.place_id}
-                role="option"
-                aria-selected={selectedIndex === index}
                 className={`px-4 py-3 cursor-pointer transition-colors ${
                   selectedIndex === index
                     ? "bg-blue-50 text-blue-900"
