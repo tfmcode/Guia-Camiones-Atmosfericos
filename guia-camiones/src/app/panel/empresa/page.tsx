@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { EmpresaInput } from "@/types";
 import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
 import { ImageUploader } from "@/components/ui/ImageUploader";
+import OptimizedAddressSearch from "@/components/maps/OptimizedAddressSearch";
 import {
   Building2,
   Mail,
@@ -20,7 +21,6 @@ import {
 import Link from "next/link";
 import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
-// ✅ AGREGADO: Interfaces para tipado correcto
 interface EmpresaResponse {
   empresa: {
     id: number;
@@ -37,6 +37,8 @@ interface EmpresaResponse {
     destacado: boolean;
     habilitado: boolean;
     servicios: Array<{ id: number; nombre: string }>;
+    lat?: number | null;
+    lng?: number | null;
   };
 }
 
@@ -47,8 +49,16 @@ interface ApiResponse {
 
 export default function PanelEmpresa() {
   const { refreshEmpresa } = useAuth();
+
+  // ✅ STATE ACTUALIZADO con lat y lng
   const [form, setForm] = useState<
-    EmpresaInput & { servicios: number[]; id?: number; slug?: string }
+    EmpresaInput & {
+      servicios: number[];
+      id?: number;
+      slug?: string;
+      lat?: number | null;
+      lng?: number | null;
+    }
   >({
     id: undefined,
     slug: undefined,
@@ -64,6 +74,8 @@ export default function PanelEmpresa() {
     destacado: false,
     habilitado: true,
     servicios: [],
+    lat: null,
+    lng: null,
   });
 
   const [provincias, setProvincias] = useState<
@@ -77,7 +89,7 @@ export default function PanelEmpresa() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ✅ NUEVA FUNCIÓN: Para cargar datos de empresa de forma separada
+  // ✅ ACTUALIZADO: Cargar datos incluyendo lat/lng
   const fetchEmpresaData = async () => {
     try {
       console.log("🔄 Cargando datos de empresa...");
@@ -110,6 +122,8 @@ export default function PanelEmpresa() {
         servicios: Array.isArray(empresa.servicios)
           ? empresa.servicios.map((s) => (typeof s === "object" ? s.id : s))
           : [],
+        lat: empresa.lat ?? null,
+        lng: empresa.lng ?? null,
       });
 
       return empresa;
@@ -120,15 +134,12 @@ export default function PanelEmpresa() {
     }
   };
 
-  // ✅ CAMBIO: Mejorar el useEffect inicial
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
       try {
-        // Cargar datos de empresa
         await fetchEmpresaData();
 
-        // Cargar provincias
         const provinciasRes = await fetch(
           "https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre"
         );
@@ -147,7 +158,6 @@ export default function PanelEmpresa() {
     loadInitialData();
   }, []);
 
-  // ✅ CAMBIO: Mejorar carga de localidades
   useEffect(() => {
     const cargarLocalidades = async () => {
       if (!form.provincia) {
@@ -156,7 +166,6 @@ export default function PanelEmpresa() {
       }
 
       try {
-        // ✅ Detectar si es CABA
         if (esCaba(form.provincia)) {
           console.log("🏙️ Cargando barrios de CABA...");
           const barrios = getBarriosFormateados();
@@ -165,7 +174,6 @@ export default function PanelEmpresa() {
           return;
         }
 
-        // ✅ Para el resto de provincias usar la API normal
         console.log(`🌎 Cargando localidades para: ${form.provincia}`);
 
         const response = await fetch(
@@ -189,7 +197,6 @@ export default function PanelEmpresa() {
         console.error("❌ Error al cargar localidades:", error);
         setLocalidades([]);
 
-        // Fallback para CABA
         if (esCaba(form.provincia)) {
           console.log("🔄 Usando fallback para barrios de CABA...");
           setLocalidades(getBarriosFormateados());
@@ -199,6 +206,7 @@ export default function PanelEmpresa() {
 
     cargarLocalidades();
   }, [form.provincia]);
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -207,12 +215,10 @@ export default function PanelEmpresa() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
 
-    // Limpiar mensajes al editar
     if (error) setError("");
     if (success) setSuccess("");
   };
 
-  // ✅ CAMBIO: Mejorar el handleSubmit con mejor manejo de respuestas
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -220,7 +226,10 @@ export default function PanelEmpresa() {
     setSuccess("");
 
     try {
-      console.log("🚀 Enviando actualización de empresa...", form);
+      console.log("🚀 Enviando actualización de empresa:", {
+        nombre: form.nombre,
+        geocodificada: !!(form.lat && form.lng),
+      });
 
       const response = await axios.put<ApiResponse>("/api/empresa/me", form, {
         withCredentials: true,
@@ -237,7 +246,7 @@ export default function PanelEmpresa() {
 
         setForm((prevForm) => ({
           ...prevForm,
-          slug: empresaActualizada.slug, // Actualizar slug especialmente importante
+          slug: empresaActualizada.slug,
           id: empresaActualizada.id,
           nombre: empresaActualizada.nombre,
           email: empresaActualizada.email || "",
@@ -256,33 +265,31 @@ export default function PanelEmpresa() {
                 typeof s === "object" ? s.id : s
               )
             : [],
+          lat: empresaActualizada.lat ?? null,
+          lng: empresaActualizada.lng ?? null,
         }));
 
-        console.log("📝 Form actualizado con slug:", empresaActualizada.slug);
+        console.log("📝 Form actualizado:", {
+          slug: empresaActualizada.slug,
+          geocodificada: !!(empresaActualizada.lat && empresaActualizada.lng),
+        });
       }
 
       setSuccess("¡Datos actualizados correctamente!");
 
-      // ✅ CAMBIO: Refrescar datos en contexto Y recargar localmente para doble verificación
       await Promise.all([
         refreshEmpresa(),
-        // Opcional: recargar datos locales después de un pequeño delay
         new Promise((resolve) => setTimeout(resolve, 500)).then(() =>
           fetchEmpresaData()
         ),
       ]);
 
       console.log("✅ Sincronización completa");
-
-      // Limpiar mensaje de éxito después de 3 segundos
       setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
       console.error("❌ Error al actualizar los datos:", error);
 
-      // ✅ CAMBIO: Mejor manejo de errores
-      if (error) {
-        setError(`Error al actualizar: `);
-      } else if (error instanceof Error) {
+      if (error instanceof Error) {
         setError(`Error al actualizar: ${error.message}`);
       } else {
         setError("Error al actualizar los datos. Intentá nuevamente.");
@@ -292,15 +299,12 @@ export default function PanelEmpresa() {
     }
   };
 
-  // ✅ CAMBIO: Mejorar handler de imágenes con actualización automática
   const handleImagenesChange = async (nuevasImagenes: string[]) => {
     console.log("🖼️ Actualizando imágenes:", nuevasImagenes.length);
 
-    // Actualizar el estado del formulario inmediatamente
     setForm((prev) => ({ ...prev, imagenes: nuevasImagenes }));
 
     try {
-      // ✅ CAMBIO: Guardar automáticamente las imágenes
       console.log("💾 Guardando imágenes automáticamente...");
 
       await axios.put<ApiResponse>(
@@ -318,12 +322,10 @@ export default function PanelEmpresa() {
         }
       );
 
-      // Refrescar datos en contexto
       await refreshEmpresa();
 
       console.log("✅ Imágenes guardadas y sincronizadas automáticamente");
 
-      // Mostrar mensaje temporal de éxito
       setSuccess("Imágenes actualizadas correctamente");
       setTimeout(() => setSuccess(""), 2000);
     } catch (error) {
@@ -352,7 +354,6 @@ export default function PanelEmpresa() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-      {/* Header */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-3">
           <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
@@ -365,7 +366,6 @@ export default function PanelEmpresa() {
           pública. Los cambios se reflejarán inmediatamente en tu perfil.
         </p>
 
-        {/* ✅ CAMBIO: Mejorar el botón de ver perfil público con debug info */}
         {form.slug ? (
           <div className="space-y-2">
             <Link
@@ -386,7 +386,6 @@ export default function PanelEmpresa() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* ✅ CAMBIO: Mejorar mensajes con mejor styling */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
             <AlertCircle size={20} className="text-red-500 flex-shrink-0" />
@@ -492,7 +491,7 @@ export default function PanelEmpresa() {
           </div>
         </div>
 
-        {/* Ubicación */}
+        {/* ✅ SECCIÓN ACTUALIZADA: Ubicación con buscador inteligente */}
         <div className={sectionStyles}>
           <div className="flex items-center gap-3 mb-6">
             <MapPin size={20} className="text-red-500" />
@@ -500,9 +499,33 @@ export default function PanelEmpresa() {
           </div>
 
           <div className="space-y-4">
+            {/* ✅ Buscador de direcciones con geocodificación */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dirección
+                Buscar y seleccionar dirección con Google Maps
+              </label>
+              <OptimizedAddressSearch
+                onLocationSelect={(coords) => {
+                  console.log("📍 Dirección seleccionada:", coords);
+                  setForm({
+                    ...form,
+                    direccion: coords.address,
+                    lat: coords.lat,
+                    lng: coords.lng,
+                  });
+                }}
+                placeholder="Buscar dirección exacta (ej: Av. Corrientes 1234, CABA)"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Al seleccionar una dirección, las coordenadas se guardan
+                automáticamente
+              </p>
+            </div>
+
+            {/* Campo manual de dirección */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                O escribir dirección manualmente
               </label>
               <input
                 name="direccion"
@@ -557,6 +580,47 @@ export default function PanelEmpresa() {
                 </select>
               </div>
             </div>
+
+            {/* ✅ Indicador de geocodificación */}
+            {form.lat && form.lng && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <MapPin size={16} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-green-900 mb-1">
+                      ✅ Dirección geocodificada correctamente
+                    </p>
+                    <p className="text-xs text-green-700 font-mono">
+                      Coordenadas: {form.lat.toFixed(6)}, {form.lng.toFixed(6)}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Tu empresa aparecerá en el mapa de búsqueda por proximidad
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!form.lat && !form.lng && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <MapPin size={16} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-900 mb-1">
+                      ⚠️ Dirección sin geocodificar
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      Usa el buscador de Google Maps arriba para que tu empresa
+                      aparezca en el mapa de proximidad
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -24,11 +24,8 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-
-    // Separá servicios e imagenes, y dejá el resto en "rest"
     const { servicios, imagenes, ...rest } = body as Record<string, unknown>;
 
-    // Validaciones mínimas
     if (!rest.nombre || !rest.telefono || !rest.direccion) {
       return NextResponse.json(
         { message: "Nombre, teléfono y dirección son obligatorios" },
@@ -36,12 +33,13 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Traer empresa actual para comparar slug por nombre
+    // ✅ NUEVO: Obtener empresa actual para comparar cambios
     const current = await pool.query(
-      "SELECT id, nombre, slug FROM empresa WHERE id = $1",
+      "SELECT id, nombre, slug, direccion, provincia, localidad, lat, lng FROM empresa WHERE id = $1",
       [Number(id)]
     );
     const empresaActual = current.rows[0];
+
     if (!empresaActual) {
       return NextResponse.json(
         { message: "Empresa no encontrada" },
@@ -49,23 +47,39 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Construir updateData con TODOS los campos del body (rest), trim de strings
     const updateData: Record<string, unknown> = {};
     Object.entries(rest).forEach(([k, v]) => {
       updateData[k] = typeof v === "string" ? (v as string).trim() : v;
     });
 
-    // Solo regenerar slug si cambió el nombre, pero SIEMPRE incluir slug en el UPDATE
+    // Regenerar slug si cambió el nombre
     let nuevoSlug = empresaActual.slug;
     if (
       typeof updateData.nombre === "string" &&
       updateData.nombre !== empresaActual.nombre
     ) {
       nuevoSlug = generarSlug(updateData.nombre as string);
+      console.log(`📝 Nombre cambió, nuevo slug: ${nuevoSlug}`);
     }
     updateData.slug = nuevoSlug;
 
-    // Campos permitidos a actualizar
+    // ✅ NUEVO: Limpiar coordenadas si cambió dirección, provincia o localidad
+    const direccionCambio =
+      (updateData.direccion &&
+        updateData.direccion !== empresaActual.direccion) ||
+      (updateData.provincia &&
+        updateData.provincia !== empresaActual.provincia) ||
+      (updateData.localidad &&
+        updateData.localidad !== empresaActual.localidad);
+
+    if (direccionCambio) {
+      console.log(
+        "🗺️  Ubicación cambió, limpiando coordenadas para re-geocodificar"
+      );
+      updateData.lat = null;
+      updateData.lng = null;
+    }
+
     const fieldsToUpdate = [
       "nombre",
       "email",
@@ -79,6 +93,8 @@ export async function PUT(req: NextRequest) {
       "habilitado",
       "usuario_id",
       "slug",
+      "lat",
+      "lng", // ✅ Agregado lat/lng
     ];
 
     const setClauses: string[] = [];
@@ -93,20 +109,18 @@ export async function PUT(req: NextRequest) {
       }
     });
 
-    // Manejo de imágenes (array o null)
+    // Manejo de imágenes
     if (Array.isArray(imagenes)) {
       setClauses.push(`imagenes = $${idx}`);
       values.push(imagenes);
       idx++;
     } else if (imagenes === null) {
-      // permitir explicitamente vaciar
       setClauses.push(`imagenes = $${idx}`);
       values.push(null);
       idx++;
     }
 
     if (setClauses.length === 0) {
-      // Nada para actualizar (no debería pasar, pero por las dudas)
       return NextResponse.json(
         { message: "No hay campos para actualizar" },
         { status: 400, headers: noCacheHeaders }
@@ -123,7 +137,7 @@ export async function PUT(req: NextRequest) {
 
     await pool.query(updateQuery, values);
 
-    // Servicios: solo tocar si se enviaron explícitamente
+    // Actualizar servicios
     if (servicios !== undefined) {
       if (!Array.isArray(servicios)) {
         return NextResponse.json(
@@ -148,7 +162,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Devolver empresa completa y fresca (con servicios)
+    // Devolver empresa completa
     const full = await pool.query(
       `
       SELECT e.*,

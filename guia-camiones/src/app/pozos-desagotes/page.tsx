@@ -4,11 +4,8 @@ import { getEmpresas } from "@/lib/api/empresaService";
 import type { EmpresaWithCoords, Empresa } from "@/types/empresa";
 import Link from "next/link";
 import { AlertCircle, MapPin, Truck } from "lucide-react";
-
-// Importar el wrapper cliente del mapa (maneja el dynamic ssr:false internamente)
 import OptimizedPozosMapViewClient from "@/components/maps/OptimizedPozosMapViewClient";
 
-// Configuración de Next.js para la página
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -131,12 +128,10 @@ function filterEmpresasForPozos(
     );
     if (nombreRelevante) score += 1;
 
-    // Log para debugging
     if (score > 0) {
       console.log(`✅ ${empresa.nombre}: score ${score}`);
     }
 
-    // ✅ CAMBIO CRÍTICO: Score mínimo de 1 (era 2)
     return score >= 1;
   });
 
@@ -162,7 +157,6 @@ function filterEmpresasForPozos(
   return empresasFiltradas;
 }
 
-// Componente de loading para el mapa
 function MapLoadingState() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -191,20 +185,17 @@ function MapLoadingState() {
   );
 }
 
-// Tipo para la respuesta de la API
 interface ApiResponse {
   data?: Empresa[];
   empresas?: Empresa[];
   [key: string]: unknown;
 }
 
-// Componente de contenido principal (Server Component)
 async function PozosDesagotesContent() {
   try {
     console.log("🚀 Cargando empresas para pozos de desagote...");
     const todasLasEmpresas = await getEmpresas();
 
-    // Validar que la respuesta sea un array
     let empresasArray: EmpresaWithCoords[] = [];
 
     if (Array.isArray(todasLasEmpresas)) {
@@ -223,7 +214,7 @@ async function PozosDesagotesContent() {
 
     console.log(`📊 Empresas cargadas: ${empresasArray.length} total`);
 
-    // Filtrar empresas especializadas en pozos de desagote
+    // ✅ CAMBIO PRINCIPAL: Filtrar empresas especializadas SIN excluir las sin coordenadas
     const empresasFiltradas = filterEmpresasForPozos(empresasArray);
 
     if (empresasFiltradas.length === 0) {
@@ -308,9 +299,9 @@ async function PozosDesagotesContent() {
       );
     }
 
-    console.log("Empresas filtradas a pasar:", empresasFiltradas.length);
+    console.log("✅ Pasando empresas al mapa:", empresasFiltradas.length);
 
-    // Retornar el componente del mapa con las empresas filtradas
+    // ✅ CAMBIO: Pasar TODAS las empresas filtradas, incluyendo las sin coordenadas
     return <OptimizedPozosMapViewClient empresas={empresasFiltradas} />;
   } catch (error) {
     console.error("❌ Error cargando empresas:", error);
@@ -354,40 +345,9 @@ export default function PozosDesagotesPage() {
   );
 }
 
-// Metadata mejorada para SEO
 export const metadata = {
   title:
     "Pozos de Desagotes Ciegos - Búsqueda Inteligente por Proximidad | Guía de Camiones Atmosféricos",
   description:
     "Encuentra empresas especializadas en desagote de pozos ciegos cerca de tu ubicación. Búsqueda inteligente con Google Maps, ordenamiento por proximidad y geocodificación automática.",
-  keywords: [
-    "pozos ciegos",
-    "desagote",
-    "camiones atmosféricos",
-    "vaciado pozos",
-    "empresas desagote",
-    "servicios ambientales",
-    "proximidad",
-    "geolocalización",
-    "desobstrucción",
-    "saneamiento",
-    "pozos sépticos",
-    "limpieza pozos",
-    "hidrojet",
-    "emergencias 24hs",
-    "residuos líquidos",
-  ].join(", "),
-  openGraph: {
-    title: "Pozos de Desagotes Ciegos - Búsqueda por Proximidad",
-    description:
-      "Encuentra empresas especializadas cerca de tu ubicación con nuestra búsqueda inteligente.",
-    images: [
-      {
-        url: "/img/portada.png",
-        width: 1200,
-        height: 630,
-        alt: "Búsqueda de empresas de desagote por proximidad",
-      },
-    ],
-  },
 };

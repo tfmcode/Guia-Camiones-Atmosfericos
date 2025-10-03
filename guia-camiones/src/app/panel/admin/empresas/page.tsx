@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
 import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
 import { ImageUploader } from "@/components/ui/ImageUploader";
+import OptimizedAddressSearch from "@/components/maps/OptimizedAddressSearch";
 import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
@@ -34,10 +35,13 @@ export default function EmpresasAdminPage() {
   const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ✅ STATE ACTUALIZADO con lat y lng
   const [form, setForm] = useState<
     Omit<EmpresaInput, "slug"> & {
       servicios: number[];
       usuarioId: number | null;
+      lat?: number | null;
+      lng?: number | null;
     }
   >({
     nombre: "",
@@ -53,6 +57,8 @@ export default function EmpresasAdminPage() {
     corrientes_de_residuos: "",
     servicios: [],
     usuarioId: null,
+    lat: null,
+    lng: null,
   });
 
   useEffect(() => {
@@ -85,7 +91,6 @@ export default function EmpresasAdminPage() {
       }
 
       try {
-        // ✅ Detectar si es CABA
         if (esCaba(form.provincia)) {
           console.log("🏙️ Cargando barrios de CABA...");
           const barrios = getBarriosFormateados();
@@ -94,7 +99,6 @@ export default function EmpresasAdminPage() {
           return;
         }
 
-        // ✅ Para el resto de provincias usar la API normal
         console.log(`🌎 Cargando municipios de ${form.provincia}...`);
 
         const response = await fetch(
@@ -118,7 +122,6 @@ export default function EmpresasAdminPage() {
         console.error("❌ Error cargando localidades:", error);
         setLocalidades([]);
 
-        // Fallback para CABA
         if (esCaba(form.provincia)) {
           console.log("🔄 Usando fallback para barrios de CABA...");
           setLocalidades(getBarriosFormateados());
@@ -150,6 +153,7 @@ export default function EmpresasAdminPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ✅ FUNCIÓN ACTUALIZADA - abrirNuevo con lat/lng
   const abrirNuevo = () => {
     setForm({
       nombre: "",
@@ -165,6 +169,8 @@ export default function EmpresasAdminPage() {
       corrientes_de_residuos: "",
       servicios: [],
       usuarioId: null,
+      lat: null,
+      lng: null,
     });
     setEmpresaIdEditar(null);
     setModoEdicion(false);
@@ -172,6 +178,7 @@ export default function EmpresasAdminPage() {
     setModalAbierto(true);
   };
 
+  // ✅ FUNCIÓN ACTUALIZADA - abrirEditar con lat/lng
   const abrirEditar = (empresa: EmpresaWithIndex) => {
     console.log("🔧 Abriendo empresa para editar:", empresa);
 
@@ -193,6 +200,8 @@ export default function EmpresasAdminPage() {
           )
         : [],
       usuarioId: empresa.usuarioId ?? null,
+      lat: empresa.lat ?? null,
+      lng: empresa.lng ?? null,
     });
     setEmpresaIdEditar(empresa.id);
     setModoEdicion(true);
@@ -200,7 +209,6 @@ export default function EmpresasAdminPage() {
     setModalAbierto(true);
   };
 
-  // ✅ NUEVO: Función para ver detalles (perfil público)
   const verDetalles = (empresa: EmpresaWithIndex) => {
     window.open(`/empresas/${empresa.slug}`, "_blank");
   };
@@ -246,7 +254,11 @@ export default function EmpresasAdminPage() {
       return;
     }
 
-    console.log("💾 Guardando empresa con imagenes:", form.imagenes);
+    console.log("💾 Guardando empresa:", {
+      nombre: form.nombre,
+      imagenes: form.imagenes.length,
+      geocodificada: !!(form.lat && form.lng),
+    });
 
     setLoading(true);
     try {
@@ -336,7 +348,6 @@ export default function EmpresasAdminPage() {
     }
   };
 
-  // ✅ MEJORADO: Render de estados con mejor diseño
   const renderBooleanIcon = (value: boolean) =>
     value ? (
       <div className="flex items-center gap-2">
@@ -354,7 +365,6 @@ export default function EmpresasAdminPage() {
       </div>
     );
 
-  // ✅ NUEVO: Render de ubicación optimizado
   const renderUbicacion = (empresa: EmpresaWithIndex) => (
     <div className="space-y-1">
       {empresa.direccion && (
@@ -373,7 +383,6 @@ export default function EmpresasAdminPage() {
     </div>
   );
 
-  // ✅ NUEVO: Render de contacto optimizado
   const renderContacto = (empresa: EmpresaWithIndex) => (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
@@ -388,7 +397,6 @@ export default function EmpresasAdminPage() {
     </div>
   );
 
-  // ✅ NUEVO: Render del nombre con servicios
   const renderNombreConServicios = (empresa: EmpresaWithIndex) => (
     <div className="space-y-2">
       <div className="font-semibold text-gray-900 text-sm leading-tight max-w-[200px]">
@@ -397,14 +405,12 @@ export default function EmpresasAdminPage() {
     </div>
   );
 
-  // Convertir empresas para compatibilidad con DataTable
   const empresasConIndex: EmpresaWithIndex[] = empresas.map((empresa) => ({
     ...empresa,
   }));
 
   return (
     <div className="space-y-6">
-      {/* ✅ MEJORADO: Header más profesional */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -436,7 +442,6 @@ export default function EmpresasAdminPage() {
         </div>
       </div>
 
-      {/* Mensajes globales */}
       {error && !modalAbierto && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
           <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -452,7 +457,6 @@ export default function EmpresasAdminPage() {
         </div>
       )}
 
-      {/* ✅ NUEVO: DataTable con columnas optimizadas y función onView */}
       <DataTable<EmpresaWithIndex>
         data={empresasConIndex}
         loading={tableLoading}
@@ -464,7 +468,7 @@ export default function EmpresasAdminPage() {
             sortable: true,
             render: renderNombreConServicios,
             width: "min-w-[280px]",
-            sticky: true, // ✅ Columna fija para mejor navegación
+            sticky: true,
           },
           {
             key: "telefono",
@@ -497,13 +501,12 @@ export default function EmpresasAdminPage() {
             width: "min-w-[120px]",
           },
         ]}
-        onView={verDetalles} // ✅ NUEVO: Botón para ver perfil público
+        onView={verDetalles}
         onEdit={abrirEditar}
         onDelete={eliminar}
-        pageSize={12} // ✅ Tamaño optimizado
+        pageSize={12}
       />
 
-      {/* Modal - se mantiene igual pero con tamaño xl para mejor experiencia */}
       <Modal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
@@ -527,7 +530,6 @@ export default function EmpresasAdminPage() {
               </div>
             )}
 
-            {/* Campos del formulario organizados en grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 label="Nombre de la empresa"
@@ -563,14 +565,6 @@ export default function EmpresasAdminPage() {
             </div>
 
             <FormField
-              label="Dirección"
-              name="direccion"
-              value={form.direccion}
-              onChange={handleChange}
-              placeholder="Av. Principal 1234"
-            />
-
-            <FormField
               label="Descripción de servicios"
               name="corrientes_de_residuos"
               value={form.corrientes_de_residuos || ""}
@@ -580,57 +574,154 @@ export default function EmpresasAdminPage() {
               placeholder="Describe los servicios que ofrece la empresa..."
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Provincia
-                </label>
-                <select
-                  name="provincia"
-                  value={form.provincia}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      provincia: e.target.value,
-                      localidad: "",
-                    })
-                  }
-                  className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccione una provincia</option>
-                  {provincias.map((prov) => (
-                    <option key={prov.id} value={prov.nombre}>
-                      {prov.nombre}
-                    </option>
-                  ))}
-                </select>
+            {/* ✅ SECCIÓN ACTUALIZADA: Ubicación con buscador inteligente */}
+            <div className="space-y-4 bg-gray-50 rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+                  <MapPin size={16} className="text-white" />
+                </div>
+                <div>
+                  <label className="block text-lg font-semibold text-gray-900">
+                    Ubicación
+                  </label>
+                  <p className="text-sm text-gray-600">
+                    Geocodifica la dirección para que aparezca en el mapa
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
+              {/* ✅ Buscador de direcciones con geocodificación */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Buscar y seleccionar dirección con Google Maps
                 </label>
-                <select
-                  name="localidad"
-                  value={form.localidad}
-                  onChange={(e) =>
-                    setForm({ ...form, localidad: e.target.value })
-                  }
-                  className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!form.provincia}
-                >
-                  <option value="">
-                    {esCaba(form.provincia || "")
-                      ? "Seleccione un barrio"
-                      : "Seleccione una localidad"}
-                  </option>
-                  {localidades.map((loc) => (
-                    <option key={loc.id} value={loc.nombre}>
-                      {loc.nombre}
-                    </option>
-                  ))}
-                </select>
+                <OptimizedAddressSearch
+                  onLocationSelect={(coords) => {
+                    console.log("📍 Dirección seleccionada:", coords);
+                    setForm({
+                      ...form,
+                      direccion: coords.address,
+                      lat: coords.lat,
+                      lng: coords.lng,
+                    });
+                  }}
+                  placeholder="Buscar dirección exacta (ej: Av. Corrientes 1234, CABA)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Al seleccionar una dirección, las coordenadas se guardan
+                  automáticamente
+                </p>
               </div>
+
+              {/* Campo manual de dirección (como backup) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  O escribir dirección manualmente
+                </label>
+                <input
+                  name="direccion"
+                  value={form.direccion}
+                  onChange={handleChange}
+                  className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Av. Principal 1234"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Provincia
+                  </label>
+                  <select
+                    name="provincia"
+                    value={form.provincia}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        provincia: e.target.value,
+                        localidad: "",
+                      })
+                    }
+                    className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Seleccione una provincia</option>
+                    {provincias.map((prov) => (
+                      <option key={prov.id} value={prov.nombre}>
+                        {prov.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
+                  </label>
+                  <select
+                    name="localidad"
+                    value={form.localidad}
+                    onChange={(e) =>
+                      setForm({ ...form, localidad: e.target.value })
+                    }
+                    className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={!form.provincia}
+                  >
+                    <option value="">
+                      {esCaba(form.provincia || "")
+                        ? "Seleccione un barrio"
+                        : "Seleccione una localidad"}
+                    </option>
+                    {localidades.map((loc) => (
+                      <option key={loc.id} value={loc.nombre}>
+                        {loc.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* ✅ Indicador de geocodificación */}
+              {form.lat && form.lng && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MapPin size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-green-900 mb-1">
+                        ✅ Dirección geocodificada correctamente
+                      </p>
+                      <p className="text-xs text-green-700 font-mono">
+                        Coordenadas: {form.lat.toFixed(6)},{" "}
+                        {form.lng.toFixed(6)}
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        Esta empresa aparecerá en el mapa de búsqueda por
+                        proximidad
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!form.lat && !form.lng && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MapPin size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-900 mb-1">
+                        ⚠️ Dirección sin geocodificar
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Usa el buscador de Google Maps arriba para que la
+                        empresa aparezca en el mapa de proximidad
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -662,7 +753,6 @@ export default function EmpresasAdminPage() {
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
 
-            {/* Sección de imágenes mejorada */}
             <div className="space-y-4 bg-gray-50 rounded-xl p-6 border border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
@@ -697,7 +787,6 @@ export default function EmpresasAdminPage() {
               )}
             </div>
 
-            {/* Checkboxes mejorados */}
             <div className="flex items-center gap-8 bg-blue-50 rounded-xl p-6 border border-blue-200">
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input
@@ -738,7 +827,6 @@ export default function EmpresasAdminPage() {
               </label>
             </div>
 
-            {/* Botones mejorados */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
