@@ -1,4 +1,4 @@
-// src/app/pozos-desagotes/page.tsx - CON REVALIDACIÓN
+// src/app/pozos-desagotes/page.tsx - Botón debajo del título
 import { Suspense } from "react";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { EmpresaWithCoords, Empresa } from "@/types/empresa";
@@ -6,9 +6,8 @@ import Link from "next/link";
 import { AlertCircle, MapPin, Truck, RefreshCw } from "lucide-react";
 import OptimizedPozosMapViewClient from "@/components/maps/OptimizedPozosMapViewClient";
 
-// ✅ CAMBIO PRINCIPAL: Forzar revalidación cada 30 segundos
 export const dynamic = "force-dynamic";
-export const revalidate = 30; // ✅ NUEVO: Revalidar cada 30 segundos
+export const revalidate = 900; // 15 minutos
 
 function filterEmpresasForPozos(
   empresas: EmpresaWithCoords[]
@@ -183,21 +182,6 @@ interface ApiResponse {
   [key: string]: unknown;
 }
 
-// ✅ NUEVO: Componente para botón de refresco manual
-function RefreshButton() {
-  return (
-    <form action="/pozos-desagotes">
-      <button
-        type="submit"
-        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-      >
-        <RefreshCw size={16} />
-        Actualizar mapa
-      </button>
-    </form>
-  );
-}
-
 async function PozosDesagotesContent() {
   try {
     console.log("🚀 Cargando empresas para pozos de desagote...");
@@ -223,7 +207,6 @@ async function PozosDesagotesContent() {
 
     const empresasFiltradas = filterEmpresasForPozos(empresasArray);
 
-    // ✅ NUEVO: Estadísticas de geocodificación
     const conCoordenadas = empresasFiltradas.filter(
       (e) => e.lat && e.lng
     ).length;
@@ -275,26 +258,43 @@ async function PozosDesagotesContent() {
     }
 
     return (
-      <div>
-        {/* ✅ NUEVO: Banner con estadísticas y botón de refresco */}
-        <div className="bg-blue-50 border-b border-blue-200 p-4">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-blue-800">
-              📊 <strong>{empresasFiltradas.length}</strong> empresas
-              especializadas |{" "}
-              <strong className="text-green-600">{conCoordenadas}</strong> en el
-              mapa
-              {sinCoordenadas > 0 && (
-                <span className="text-amber-600">
-                  {" "}
-                  | <strong>{sinCoordenadas}</strong> sin geocodificar
-                </span>
-              )}
+      <div className="relative">
+        {/* ✅ Header con título y botón de actualización */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-20 shadow-sm">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <Truck size={20} className="text-green-600" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                Desagotes de Pozos Ciegos
+                </h1>
+              </div>
             </div>
-            <RefreshButton />
+
+            {/* ✅ Botón de actualización - Posición mejorada */}
+            <form action="/pozos-desagotes">
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg group"
+                title="Actualizar lista de empresas"
+              >
+                <RefreshCw
+                  size={16}
+                  className="group-hover:rotate-180 transition-transform duration-500"
+                />
+                <span className="hidden sm:inline">Actualizar</span>
+                <div className="hidden sm:flex items-center gap-1 ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                  15m
+                </div>
+              </button>
+            </form>
           </div>
         </div>
 
+        {/* Mapa con empresas */}
         <OptimizedPozosMapViewClient empresas={empresasFiltradas} />
       </div>
     );
@@ -309,13 +309,22 @@ async function PozosDesagotesContent() {
             Error al cargar empresas
           </h2>
           <p className="text-gray-600 mb-6">
-            Hubo un problema al cargar las empresas.
+            Hubo un problema al cargar las empresas. Intentá actualizar la
+            página.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <RefreshButton />
+            <form action="/pozos-desagotes">
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <RefreshCw size={18} />
+                Actualizar
+              </button>
+            </form>
             <Link
               href="/empresas"
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium inline-block"
             >
               Ver guía general
             </Link>
@@ -338,5 +347,5 @@ export const metadata = {
   title:
     "Pozos de Desagotes Ciegos - Búsqueda por Proximidad | Guía Atmosféricos",
   description:
-    "Encuentra empresas especializadas cerca de tu ubicación con actualización automática cada 30 segundos.",
+    "Encuentra empresas especializadas cerca de tu ubicación con actualización automática cada 15 minutos.",
 };

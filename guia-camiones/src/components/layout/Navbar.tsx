@@ -153,7 +153,6 @@ const Navbar = () => {
     };
   }, []);
 
-  // Cerrar menú al hacer scroll
   useEffect(() => {
     const handleScroll = () => {
       if (showMenu) setShowMenu(false);
@@ -168,9 +167,8 @@ const Navbar = () => {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Aumenté la altura: h-24 en móvil, h-28 en tablet, h-32 en desktop */}
         <div className="flex h-24 sm:h-28 lg:h-32 items-center justify-between">
-          {/* Logo - Mejorado para móvil */}
+          {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
               <div className="relative">
@@ -183,7 +181,6 @@ const Navbar = () => {
                   priority
                 />
               </div>
-              {/* Ahora el nombre es visible en todos los tamaños de pantalla */}
               <div className="flex flex-col">
                 <div className="text-sm sm:text-base lg:text-lg font-bold text-[#1c2e39] leading-tight">
                   <div>GUÍA DE CAMIONES</div>
@@ -278,13 +275,6 @@ const Navbar = () => {
 
           {/* Botones de acción Desktop */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link
-              href="/pozos-desagotes"
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-            >
-              🗺️ Búsqueda por Proximidad
-            </Link>
-
             <Link
               href="/login"
               className="bg-gray-100 hover:bg-gray-200 text-[#1c2e39] px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
@@ -400,13 +390,6 @@ const Navbar = () => {
                 className="block w-full text-center py-3 bg-[#1c2e39] text-white rounded-lg font-medium hover:bg-[#15253a] transition-colors"
               >
                 Registrá tu Empresa
-              </Link>
-              <Link
-                href="/pozos-desagotes"
-                onClick={() => setShowMenu(false)}
-                className="block w-full text-center py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                🗺️ Búsqueda por Proximidad
               </Link>
             </div>
           </div>

@@ -5,6 +5,7 @@ import Script from "next/script";
 import LayoutContent from "@/components/layout/LayoutContent";
 import { AuthProvider } from "@/context/AuthContext";
 import WhatsappFloating from "@/components/ui/WhatsappFloating";
+import ProximidadFloating from "@/components/ui/ProximidadFloating";
 
 export const metadata: Metadata = {
   title: "Guía de Camiones Atmosféricos",
@@ -59,6 +60,7 @@ export default function RootLayout({
         </noscript>
 
         <WhatsappFloating />
+        <ProximidadFloating />
         <AuthProvider>
           <LayoutContent>{children}</LayoutContent>
         </AuthProvider>

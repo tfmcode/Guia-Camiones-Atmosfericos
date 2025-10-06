@@ -481,14 +481,7 @@ export default function OptimizedPozosMapView({
       {/* Header Compacto */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-              🚛 Pozos de Desagotes
-            </h1>
-            <span className="text-sm text-gray-600">
-              Búsqueda por proximidad
-            </span>
-          </div>
+          
 
           <OptimizedAddressSearch
             onLocationSelect={handleLocationSelect}
