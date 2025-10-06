@@ -1,15 +1,15 @@
-// src/app/pozos-desagotes/page.tsx
+// src/app/pozos-desagotes/page.tsx - CON REVALIDACIÓN
 import { Suspense } from "react";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { EmpresaWithCoords, Empresa } from "@/types/empresa";
 import Link from "next/link";
-import { AlertCircle, MapPin, Truck } from "lucide-react";
+import { AlertCircle, MapPin, Truck, RefreshCw } from "lucide-react";
 import OptimizedPozosMapViewClient from "@/components/maps/OptimizedPozosMapViewClient";
 
+// ✅ CAMBIO PRINCIPAL: Forzar revalidación cada 30 segundos
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 30; // ✅ NUEVO: Revalidar cada 30 segundos
 
-// ✅ FUNCIÓN CORREGIDA - Score mínimo de 1
 function filterEmpresasForPozos(
   empresas: EmpresaWithCoords[]
 ): EmpresaWithCoords[] {
@@ -86,14 +86,12 @@ function filterEmpresasForPozos(
   const empresasFiltradas = empresas.filter((empresa) => {
     let score = 0;
 
-    // Buscar en nombre de la empresa (peso alto)
     const nombreLower = empresa.nombre.toLowerCase();
     const nombreMatches = pozosKeywords.filter((keyword) =>
       nombreLower.includes(keyword)
     ).length;
     score += nombreMatches * 3;
 
-    // Buscar en servicios (peso alto)
     if (empresa.servicios && empresa.servicios.length > 0) {
       const serviciosText = empresa.servicios
         .map((s) => s.nombre.toLowerCase())
@@ -104,7 +102,6 @@ function filterEmpresasForPozos(
       score += serviciosMatches * 3;
     }
 
-    // Buscar en descripción/corrientes de residuos (peso medio)
     if (empresa.corrientes_de_residuos) {
       const descripcionLower = empresa.corrientes_de_residuos.toLowerCase();
       const descripcionMatches = pozosKeywords.filter((keyword) =>
@@ -113,7 +110,6 @@ function filterEmpresasForPozos(
       score += descripcionMatches * 2;
     }
 
-    // Buscar en dirección (peso bajo)
     if (empresa.direccion) {
       const direccionLower = empresa.direccion.toLowerCase();
       const direccionMatches = pozosKeywords.filter((keyword) =>
@@ -122,7 +118,6 @@ function filterEmpresasForPozos(
       score += direccionMatches * 1;
     }
 
-    // Nombres sugestivos como bonus
     const nombreRelevante = nombresRelevantes.some((keyword) =>
       nombreLower.includes(keyword)
     );
@@ -135,13 +130,10 @@ function filterEmpresasForPozos(
     return score >= 1;
   });
 
-  // Ordenar por score (empresas más relevantes primero)
   empresasFiltradas.sort((a, b) => {
-    // Primero las destacadas
     if (a.destacado && !b.destacado) return -1;
     if (!a.destacado && b.destacado) return 1;
 
-    // Luego por relevancia implícita (más servicios relacionados)
     const aRelevance =
       (a.servicios?.length || 0) + (a.corrientes_de_residuos ? 1 : 0);
     const bRelevance =
@@ -191,6 +183,21 @@ interface ApiResponse {
   [key: string]: unknown;
 }
 
+// ✅ NUEVO: Componente para botón de refresco manual
+function RefreshButton() {
+  return (
+    <form action="/pozos-desagotes">
+      <button
+        type="submit"
+        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+      >
+        <RefreshCw size={16} />
+        Actualizar mapa
+      </button>
+    </form>
+  );
+}
+
 async function PozosDesagotesContent() {
   try {
     console.log("🚀 Cargando empresas para pozos de desagote...");
@@ -214,8 +221,17 @@ async function PozosDesagotesContent() {
 
     console.log(`📊 Empresas cargadas: ${empresasArray.length} total`);
 
-    // ✅ CAMBIO PRINCIPAL: Filtrar empresas especializadas SIN excluir las sin coordenadas
     const empresasFiltradas = filterEmpresasForPozos(empresasArray);
+
+    // ✅ NUEVO: Estadísticas de geocodificación
+    const conCoordenadas = empresasFiltradas.filter(
+      (e) => e.lat && e.lng
+    ).length;
+    const sinCoordenadas = empresasFiltradas.length - conCoordenadas;
+
+    console.log(
+      `🗺️ Geocodificación: ${conCoordenadas} completas, ${sinCoordenadas} pendientes`
+    );
 
     if (empresasFiltradas.length === 0) {
       return (
@@ -240,7 +256,7 @@ async function PozosDesagotesContent() {
               </h2>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 Actualmente no hay empresas especializadas en pozos de desagote
-                registradas, pero podés buscar en nuestra guía general.
+                registradas.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -251,47 +267,6 @@ async function PozosDesagotesContent() {
                   <MapPin size={20} />
                   Ver todas las empresas
                 </Link>
-
-                <Link
-                  href="/registro"
-                  className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  <Truck size={20} />
-                  Registrar mi empresa
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="font-semibold text-blue-900 mb-2">
-                  ¿Tenés una empresa de desagotes?
-                </h3>
-                <p className="text-blue-800 text-sm mb-4">
-                  Registrá tu empresa gratis y aparecé en los resultados de
-                  búsqueda.
-                </p>
-                <Link
-                  href="/registro"
-                  className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-                >
-                  Registrarme ahora →
-                </Link>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                <h3 className="font-semibold text-green-900 mb-2">
-                  ¿Necesitás este servicio?
-                </h3>
-                <p className="text-green-800 text-sm mb-4">
-                  Explorá nuestra guía completa de empresas ambientales.
-                </p>
-                <Link
-                  href="/empresas"
-                  className="text-green-600 hover:text-green-700 font-medium text-sm"
-                >
-                  Ver empresas →
-                </Link>
               </div>
             </div>
           </div>
@@ -299,10 +274,30 @@ async function PozosDesagotesContent() {
       );
     }
 
-    console.log("✅ Pasando empresas al mapa:", empresasFiltradas.length);
+    return (
+      <div>
+        {/* ✅ NUEVO: Banner con estadísticas y botón de refresco */}
+        <div className="bg-blue-50 border-b border-blue-200 p-4">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-blue-800">
+              📊 <strong>{empresasFiltradas.length}</strong> empresas
+              especializadas |{" "}
+              <strong className="text-green-600">{conCoordenadas}</strong> en el
+              mapa
+              {sinCoordenadas > 0 && (
+                <span className="text-amber-600">
+                  {" "}
+                  | <strong>{sinCoordenadas}</strong> sin geocodificar
+                </span>
+              )}
+            </div>
+            <RefreshButton />
+          </div>
+        </div>
 
-    // ✅ CAMBIO: Pasar TODAS las empresas filtradas, incluyendo las sin coordenadas
-    return <OptimizedPozosMapViewClient empresas={empresasFiltradas} />;
+        <OptimizedPozosMapViewClient empresas={empresasFiltradas} />
+      </div>
+    );
   } catch (error) {
     console.error("❌ Error cargando empresas:", error);
 
@@ -314,16 +309,10 @@ async function PozosDesagotesContent() {
             Error al cargar empresas
           </h2>
           <p className="text-gray-600 mb-6">
-            Hubo un problema al cargar las empresas. Por favor, intentá
-            nuevamente en unos momentos.
+            Hubo un problema al cargar las empresas.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/pozos-desagotes"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Reintentar
-            </Link>
+            <RefreshButton />
             <Link
               href="/empresas"
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
@@ -347,7 +336,7 @@ export default function PozosDesagotesPage() {
 
 export const metadata = {
   title:
-    "Pozos de Desagotes Ciegos - Búsqueda Inteligente por Proximidad | Guía de Camiones Atmosféricos",
+    "Pozos de Desagotes Ciegos - Búsqueda por Proximidad | Guía Atmosféricos",
   description:
-    "Encuentra empresas especializadas en desagote de pozos ciegos cerca de tu ubicación. Búsqueda inteligente con Google Maps, ordenamiento por proximidad y geocodificación automática.",
+    "Encuentra empresas especializadas cerca de tu ubicación con actualización automática cada 30 segundos.",
 };

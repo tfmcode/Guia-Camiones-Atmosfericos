@@ -1,3 +1,4 @@
+// src/app/admin/empresas/page.tsx - VERSIÓN COMPONENTIZADA
 "use client";
 
 import { useEffect, useState, ChangeEvent } from "react";
@@ -5,15 +6,15 @@ import DataTable from "@/components/ui/DataTable";
 import Modal from "@/components/ui/Modal";
 import FormField from "@/components/ui/FormField";
 import ServicioMultiSelect from "@/components/ui/ServicioMultiSelect";
-import { ImageUploader } from "@/components/ui/ImageUploader";
-import OptimizedAddressSearch from "@/components/maps/OptimizedAddressSearch";
+import UbicacionFormSection from "@/components/admin/UbicacionFormSection";
+import ImagenesFormSection from "@/components/admin/ImagenesFormSection";
+import GeocodingBatchBanner from "@/components/admin/GeocodingBatchBanner";
 import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
-import { Building2, Plus, Eye, MapPin, Phone } from "lucide-react";
+import { Building2, Plus, MapPin, Phone, AlertCircle } from "lucide-react";
 import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
-// Extender Empresa para que sea compatible con DataTable
 type EmpresaWithIndex = Empresa & Record<string, unknown>;
 
 export default function EmpresasAdminPage() {
@@ -24,7 +25,6 @@ export default function EmpresasAdminPage() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [empresaIdEditar, setEmpresaIdEditar] = useState<number | null>(null);
-
   const [provincias, setProvincias] = useState<
     { id: string; nombre: string }[]
   >([]);
@@ -34,8 +34,13 @@ export default function EmpresasAdminPage() {
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState("");
+  const [geocodificando, setGeocodificando] = useState(false);
+  const [resultadoGeocodificacion, setResultadoGeocodificacion] = useState<{
+    total: number;
+    exitosas: number;
+    fallidas: number;
+  } | null>(null);
 
-  // ✅ STATE ACTUALIZADO con lat y lng
   const [form, setForm] = useState<
     Omit<EmpresaInput, "slug"> & {
       servicios: number[];
@@ -65,21 +70,22 @@ export default function EmpresasAdminPage() {
     const cargarDatos = async () => {
       try {
         fetchEmpresas();
-
-        const provinciasRes = await fetch(
-          "https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre"
-        );
-        const provinciasData = await provinciasRes.json();
+        const [provinciasRes, usuariosRes] = await Promise.all([
+          fetch(
+            "https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre"
+          ),
+          fetch("/api/usuarios?rol=EMPRESA"),
+        ]);
+        const [provinciasData, usuariosData] = await Promise.all([
+          provinciasRes.json(),
+          usuariosRes.json(),
+        ]);
         setProvincias(provinciasData.provincias);
-
-        const usuariosRes = await fetch("/api/usuarios?rol=EMPRESA");
-        const usuariosData = await usuariosRes.json();
         setUsuariosEmpresa(usuariosData);
-      } catch (err: unknown) {
+      } catch (err) {
         console.error("Error al cargar datos iniciales:", err);
       }
     };
-
     cargarDatos();
   }, []);
 
@@ -89,46 +95,23 @@ export default function EmpresasAdminPage() {
         setLocalidades([]);
         return;
       }
-
       try {
         if (esCaba(form.provincia)) {
-          console.log("🏙️ Cargando barrios de CABA...");
-          const barrios = getBarriosFormateados();
-          setLocalidades(barrios);
-          console.log(`✅ ${barrios.length} barrios de CABA cargados`);
+          setLocalidades(getBarriosFormateados());
           return;
         }
-
-        console.log(`🌎 Cargando municipios de ${form.provincia}...`);
-
         const response = await fetch(
           `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
             form.provincia
           )}&campos=id,nombre&max=1000`
         );
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        const municipios = data.municipios || [];
-
-        setLocalidades(municipios);
-        console.log(
-          `✅ ${municipios.length} municipios cargados para ${form.provincia}`
-        );
-      } catch (error) {
-        console.error("❌ Error cargando localidades:", error);
-        setLocalidades([]);
-
-        if (esCaba(form.provincia)) {
-          console.log("🔄 Usando fallback para barrios de CABA...");
-          setLocalidades(getBarriosFormateados());
-        }
+        setLocalidades(data.municipios || []);
+      } catch {
+        setLocalidades(esCaba(form.provincia) ? getBarriosFormateados() : []);
       }
     };
-
     cargarLocalidades();
   }, [form.provincia]);
 
@@ -137,13 +120,45 @@ export default function EmpresasAdminPage() {
     try {
       const res = await fetch("/api/empresa/admin");
       const data = await res.json();
-      console.log("📊 Empresas cargadas desde API:", data);
       setEmpresas(data);
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Error al cargar empresas:", err);
       setError("Error al cargar empresas.");
     } finally {
       setTableLoading(false);
+    }
+  };
+
+  const ejecutarGeocodificacionMasiva = async () => {
+    const empresasSinCoordenadas = empresas.filter(
+      (e) => !e.lat || !e.lng
+    ).length;
+    if (empresasSinCoordenadas === 0) {
+      alert("No hay empresas pendientes de geocodificar");
+      return;
+    }
+    if (
+      !confirm(
+        `¿Geocodificar ${empresasSinCoordenadas} empresas sin coordenadas?`
+      )
+    ) {
+      return;
+    }
+    setGeocodificando(true);
+    setResultadoGeocodificacion(null);
+    try {
+      const response = await fetch("/api/empresa/admin/geocode-batch", {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Error al geocodificar empresas");
+      const resultado = await response.json();
+      setResultadoGeocodificacion(resultado);
+      await fetchEmpresas();
+    } catch (error) {
+      console.error("Error al geocodificar:", error);
+      alert("Error al ejecutar la geocodificación masiva");
+    } finally {
+      setGeocodificando(false);
     }
   };
 
@@ -153,7 +168,6 @@ export default function EmpresasAdminPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ✅ FUNCIÓN ACTUALIZADA - abrirNuevo con lat/lng
   const abrirNuevo = () => {
     setForm({
       nombre: "",
@@ -178,10 +192,7 @@ export default function EmpresasAdminPage() {
     setModalAbierto(true);
   };
 
-  // ✅ FUNCIÓN ACTUALIZADA - abrirEditar con lat/lng
   const abrirEditar = (empresa: EmpresaWithIndex) => {
-    console.log("🔧 Abriendo empresa para editar:", empresa);
-
     setForm({
       nombre: empresa.nombre,
       email: empresa.email || "",
@@ -214,35 +225,16 @@ export default function EmpresasAdminPage() {
   };
 
   const handleImagenesChange = async (nuevasImagenes: string[]) => {
-    console.log("🔄 handleImagenesChange llamado con:", nuevasImagenes);
-
-    setForm((prev) => {
-      const nuevoForm = { ...prev, imagenes: nuevasImagenes };
-      console.log("📝 Form actualizado con nuevas imágenes:", nuevoForm);
-      return nuevoForm;
-    });
-
+    setForm((prev) => ({ ...prev, imagenes: nuevasImagenes }));
     if (modoEdicion && empresaIdEditar !== null) {
       try {
-        console.log("🚀 Enviando actualización al servidor...");
-
-        const payload = {
+        await axios.put(`/api/empresa/admin/${empresaIdEditar}`, {
           ...form,
           imagenes: nuevasImagenes,
-        };
-
-        console.log("📦 Payload a enviar:", payload);
-
-        const response = await axios.put(
-          `/api/empresa/admin/${empresaIdEditar}`,
-          payload
-        );
-        console.log("✅ Respuesta del servidor:", response.data);
-
+        });
         await fetchEmpresas();
-        console.log("🔄 Tabla refrescada correctamente");
       } catch (error) {
-        console.error("❌ Error al actualizar imágenes en servidor:", error);
+        console.error("Error al actualizar imágenes:", error);
         setError("Error al actualizar las imágenes en el servidor.");
       }
     }
@@ -253,66 +245,39 @@ export default function EmpresasAdminPage() {
       setError("El nombre y teléfono son obligatorios.");
       return;
     }
-
-    console.log("💾 Guardando empresa:", {
-      nombre: form.nombre,
-      imagenes: form.imagenes.length,
-      geocodificada: !!(form.lat && form.lng),
-    });
-
     setLoading(true);
     try {
       if (modoEdicion && empresaIdEditar !== null) {
-        const response = await axios.put(
-          `/api/empresa/admin/${empresaIdEditar}`,
-          form
-        );
-        console.log("✅ Empresa actualizada exitosamente:", response.data);
+        await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
       } else {
         const response = await axios.post("/api/empresa/admin", form);
-        console.log("✅ Empresa creada:", response.data);
-
         if (
           response.data &&
           typeof response.data === "object" &&
           "id" in response.data
         ) {
-          const empresaCreada = response.data as { id: number };
-          setEmpresaIdEditar(empresaCreada.id);
+          setEmpresaIdEditar((response.data as { id: number }).id);
           setModoEdicion(true);
         }
       }
-
       await fetchEmpresas();
-
-      if (modoEdicion) {
-        setModalAbierto(false);
-      }
-
+      if (modoEdicion) setModalAbierto(false);
       setError("");
     } catch (err: unknown) {
-      console.error("❌ Error al guardar empresa:", err);
-
-      let errorMessage = "Error al guardar empresa.";
-
-      if (
+      alert(
         err &&
-        typeof err === "object" &&
-        "response" in err &&
-        err.response &&
-        typeof err.response === "object" &&
-        "data" in err.response &&
-        err.response.data &&
-        typeof err.response.data === "object" &&
-        "message" in err.response.data &&
-        typeof err.response.data.message === "string"
-      ) {
-        errorMessage = err.response.data.message;
-      }
-
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+          typeof err === "object" &&
+          "response" in err &&
+          err.response &&
+          typeof err.response === "object" &&
+          "data" in err.response &&
+          err.response.data &&
+          typeof err.response.data === "object" &&
+          "message" in err.response.data &&
+          typeof err.response.data.message === "string"
+          ? err.response.data.message
+          : "Error al eliminar empresa."
+      );
     }
   };
 
@@ -323,10 +288,6 @@ export default function EmpresasAdminPage() {
       await axios.delete(`/api/empresa/admin/${empresa.id}`);
       fetchEmpresas();
     } catch (err: unknown) {
-      console.error("Error al eliminar empresa:", err);
-
-      let errorMessage = "Error al eliminar empresa.";
-
       if (
         err &&
         typeof err === "object" &&
@@ -336,34 +297,36 @@ export default function EmpresasAdminPage() {
         "data" in err.response &&
         err.response.data &&
         typeof err.response.data === "object" &&
-        "message" in err.response.data &&
-        typeof err.response.data.message === "string"
+        "message" in err.response.data
       ) {
-        errorMessage = err.response.data.message;
+        alert(
+          (err.response as { data: { message?: string } }).data.message ||
+            "Error al eliminar empresa."
+        );
+      } else {
+        alert("Error al eliminar empresa.");
       }
-
-      alert(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderBooleanIcon = (value: boolean) =>
-    value ? (
-      <div className="flex items-center gap-2">
+  const renderBooleanIcon = (value: boolean) => (
+    <div className="flex items-center gap-2">
+      {value ? (
         <CheckCircleIcon className="h-5 w-5 text-green-500" />
-        <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
-          Activa
-        </span>
-      </div>
-    ) : (
-      <div className="flex items-center gap-2">
+      ) : (
         <XCircleIcon className="h-5 w-5 text-red-500" />
-        <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
-          Inactiva
-        </span>
-      </div>
-    );
+      )}
+      <span
+        className={`text-xs font-medium px-2 py-1 rounded-full ${
+          value ? "text-green-700 bg-green-100" : "text-red-700 bg-red-100"
+        }`}
+      >
+        {value ? "Activa" : "Inactiva"}
+      </span>
+    </div>
+  );
 
   const renderUbicacion = (empresa: EmpresaWithIndex) => (
     <div className="space-y-1">
@@ -398,19 +361,40 @@ export default function EmpresasAdminPage() {
   );
 
   const renderNombreConServicios = (empresa: EmpresaWithIndex) => (
-    <div className="space-y-2">
-      <div className="font-semibold text-gray-900 text-sm leading-tight max-w-[200px]">
-        {empresa.nombre}
-      </div>
+    <div className="font-semibold text-gray-900 text-sm leading-tight max-w-[200px]">
+      {empresa.nombre}
     </div>
   );
+
+  const renderGeocodingStatus = (empresa: EmpresaWithIndex) => {
+    const hasCoords = !!(empresa.lat && empresa.lng);
+    return (
+      <div className="flex items-center gap-2">
+        {hasCoords ? (
+          <div className="flex items-center gap-1 text-green-600">
+            <MapPin size={14} className="fill-current" />
+            <span className="text-xs font-medium">Geocodificada</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-amber-600">
+            <AlertCircle size={14} />
+            <span className="text-xs font-medium">Sin coordenadas</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const empresasConIndex: EmpresaWithIndex[] = empresas.map((empresa) => ({
     ...empresa,
   }));
+  const empresasSinCoordenadas = empresas.filter(
+    (e) => !e.lat || !e.lng
+  ).length;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -426,13 +410,12 @@ export default function EmpresasAdminPage() {
               </p>
             </div>
           </div>
-
           <button
             onClick={abrirNuevo}
             disabled={loading || tableLoading}
             className={`flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
               loading || tableLoading
-                ? "opacity-50 cursor-not-allowed transform-none"
+                ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-blue-700 hover:scale-105"
             }`}
           >
@@ -442,21 +425,31 @@ export default function EmpresasAdminPage() {
         </div>
       </div>
 
+      {/* Error */}
       {error && !modalAbierto && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
-          <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-sm">!</span>
           </div>
           <p className="text-red-700 text-sm font-medium flex-1">{error}</p>
           <button
             onClick={() => setError("")}
-            className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg p-1 transition-colors"
+            className="text-red-500 hover:text-red-700"
           >
             ×
           </button>
         </div>
       )}
 
+      {/* Banner Geocodificación */}
+      <GeocodingBatchBanner
+        empresasSinCoordenadas={empresasSinCoordenadas}
+        geocodificando={geocodificando}
+        resultadoGeocodificacion={resultadoGeocodificacion}
+        onExecute={ejecutarGeocodificacionMasiva}
+      />
+
+      {/* Tabla */}
       <DataTable<EmpresaWithIndex>
         data={empresasConIndex}
         loading={tableLoading}
@@ -464,7 +457,7 @@ export default function EmpresasAdminPage() {
         columns={[
           {
             key: "nombre",
-            label: "Empresa y Servicios",
+            label: "Empresa",
             sortable: true,
             render: renderNombreConServicios,
             width: "min-w-[280px]",
@@ -488,17 +481,24 @@ export default function EmpresasAdminPage() {
             key: "destacado",
             label: "Destacada",
             sortable: true,
-            render: (empresa: EmpresaWithIndex) =>
-              renderBooleanIcon(empresa.destacado as boolean),
+            render: (e: EmpresaWithIndex) =>
+              renderBooleanIcon(e.destacado as boolean),
             width: "min-w-[120px]",
           },
           {
             key: "habilitado",
             label: "Habilitada",
             sortable: true,
-            render: (empresa: EmpresaWithIndex) =>
-              renderBooleanIcon(empresa.habilitado as boolean),
+            render: (e: EmpresaWithIndex) =>
+              renderBooleanIcon(e.habilitado as boolean),
             width: "min-w-[120px]",
+          },
+          {
+            key: "lat",
+            label: "Mapa",
+            sortable: false,
+            render: renderGeocodingStatus,
+            width: "min-w-[140px]",
           },
         ]}
         onView={verDetalles}
@@ -507,6 +507,7 @@ export default function EmpresasAdminPage() {
         pageSize={12}
       />
 
+      {/* Modal */}
       <Modal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
@@ -521,15 +522,7 @@ export default function EmpresasAdminPage() {
             }}
             className="space-y-6 p-2"
           >
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-xs">!</span>
-                </div>
-                <p className="text-red-700 text-sm font-medium">{error}</p>
-              </div>
-            )}
-
+            {/* Campos básicos */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 label="Nombre de la empresa"
@@ -571,161 +564,35 @@ export default function EmpresasAdminPage() {
               onChange={handleChange}
               type="textarea"
               rows={3}
-              placeholder="Describe los servicios que ofrece la empresa..."
             />
 
-            {/* ✅ SECCIÓN ACTUALIZADA: Ubicación con buscador inteligente */}
-            <div className="space-y-4 bg-gray-50 rounded-xl p-6 border border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-                  <MapPin size={16} className="text-white" />
-                </div>
-                <div>
-                  <label className="block text-lg font-semibold text-gray-900">
-                    Ubicación
-                  </label>
-                  <p className="text-sm text-gray-600">
-                    Geocodifica la dirección para que aparezca en el mapa
-                  </p>
-                </div>
-              </div>
+            {/* Componente Ubicación */}
+            <UbicacionFormSection
+              direccion={form.direccion}
+              provincia={form.provincia}
+              localidad={form.localidad}
+              lat={form.lat}
+              lng={form.lng}
+              provincias={provincias}
+              localidades={localidades}
+              onDireccionChange={handleChange}
+              onProvinciaChange={(provincia) =>
+                setForm({ ...form, provincia, localidad: "" })
+              }
+              onLocalidadChange={(localidad) => setForm({ ...form, localidad })}
+              onLocationSelect={(coords) =>
+                setForm({
+                  ...form,
+                  direccion: coords.address,
+                  lat: coords.lat,
+                  lng: coords.lng,
+                })
+              }
+            />
 
-              {/* ✅ Buscador de direcciones con geocodificación */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Buscar y seleccionar dirección con Google Maps
-                </label>
-                <OptimizedAddressSearch
-                  onLocationSelect={(coords) => {
-                    console.log("📍 Dirección seleccionada:", coords);
-                    setForm({
-                      ...form,
-                      direccion: coords.address,
-                      lat: coords.lat,
-                      lng: coords.lng,
-                    });
-                  }}
-                  placeholder="Buscar dirección exacta (ej: Av. Corrientes 1234, CABA)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  💡 Al seleccionar una dirección, las coordenadas se guardan
-                  automáticamente
-                </p>
-              </div>
-
-              {/* Campo manual de dirección (como backup) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  O escribir dirección manualmente
-                </label>
-                <input
-                  name="direccion"
-                  value={form.direccion}
-                  onChange={handleChange}
-                  className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Av. Principal 1234"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Provincia
-                  </label>
-                  <select
-                    name="provincia"
-                    value={form.provincia}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        provincia: e.target.value,
-                        localidad: "",
-                      })
-                    }
-                    className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Seleccione una provincia</option>
-                    {provincias.map((prov) => (
-                      <option key={prov.id} value={prov.nombre}>
-                        {prov.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
-                  </label>
-                  <select
-                    name="localidad"
-                    value={form.localidad}
-                    onChange={(e) =>
-                      setForm({ ...form, localidad: e.target.value })
-                    }
-                    className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!form.provincia}
-                  >
-                    <option value="">
-                      {esCaba(form.provincia || "")
-                        ? "Seleccione un barrio"
-                        : "Seleccione una localidad"}
-                    </option>
-                    {localidades.map((loc) => (
-                      <option key={loc.id} value={loc.nombre}>
-                        {loc.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* ✅ Indicador de geocodificación */}
-              {form.lat && form.lng && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin size={16} className="text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-green-900 mb-1">
-                        ✅ Dirección geocodificada correctamente
-                      </p>
-                      <p className="text-xs text-green-700 font-mono">
-                        Coordenadas: {form.lat.toFixed(6)},{" "}
-                        {form.lng.toFixed(6)}
-                      </p>
-                      <p className="text-xs text-green-600 mt-1">
-                        Esta empresa aparecerá en el mapa de búsqueda por
-                        proximidad
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!form.lat && !form.lng && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin size={16} className="text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-amber-900 mb-1">
-                        ⚠️ Dirección sin geocodificar
-                      </p>
-                      <p className="text-xs text-amber-700">
-                        Usa el buscador de Google Maps arriba para que la
-                        empresa aparezca en el mapa de proximidad
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+            {/* Usuario asignado */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Usuario EMPRESA asignado
               </label>
               <select
@@ -740,62 +607,38 @@ export default function EmpresasAdminPage() {
                 className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Sin asignar</option>
-                {usuariosEmpresa.map((usuario) => (
-                  <option key={usuario.id} value={usuario.id}>
-                    {usuario.email} (ID {usuario.id})
+                {usuariosEmpresa.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.email} (ID {u.id})
                   </option>
                 ))}
               </select>
             </div>
 
+            {/* Servicios */}
             <ServicioMultiSelect
               serviciosSeleccionados={form.servicios}
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
 
-            <div className="space-y-4 bg-gray-50 rounded-xl p-6 border border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-                  <Eye size={16} className="text-white" />
-                </div>
-                <div>
-                  <label className="block text-lg font-semibold text-gray-900">
-                    Galería de Imágenes
-                  </label>
-                  <p className="text-sm text-gray-600">
-                    La primera imagen será la imagen principal de la empresa
-                  </p>
-                </div>
-              </div>
+            {/* Componente Imágenes */}
+            <ImagenesFormSection
+              modoEdicion={modoEdicion}
+              empresaId={empresaIdEditar}
+              imagenes={form.imagenes}
+              onChange={handleImagenesChange}
+            />
 
-              {modoEdicion && empresaIdEditar ? (
-                <ImageUploader
-                  empresaId={empresaIdEditar}
-                  imagenes={form.imagenes}
-                  onChange={handleImagenesChange}
-                />
-              ) : (
-                <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Eye size={32} className="text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 font-medium">
-                    Imágenes disponibles después de crear
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Las imágenes se pueden agregar después de crear la empresa
-                  </p>
-                </div>
-              )}
-            </div>
-
+            {/* Checkboxes */}
             <div className="flex items-center gap-8 bg-blue-50 rounded-xl p-6 border border-blue-200">
-              <label className="flex items-center gap-3 cursor-pointer group">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.destacado}
                   onChange={(e) =>
                     setForm({ ...form, destacado: e.target.checked })
                   }
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded"
                 />
                 <div>
                   <span className="text-sm font-semibold text-gray-900">
@@ -806,15 +649,14 @@ export default function EmpresasAdminPage() {
                   </p>
                 </div>
               </label>
-
-              <label className="flex items-center gap-3 cursor-pointer group">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.habilitado}
                   onChange={(e) =>
                     setForm({ ...form, habilitado: e.target.checked })
                   }
-                  className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  className="w-5 h-5 text-green-600 border-gray-300 rounded"
                 />
                 <div>
                   <span className="text-sm font-semibold text-gray-900">
@@ -827,55 +669,36 @@ export default function EmpresasAdminPage() {
               </label>
             </div>
 
+            {/* Botones */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={() => setModalAbierto(false)}
                 disabled={loading}
-                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 font-medium"
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50"
               >
                 Cancelar
               </button>
-
               {!modoEdicion && (
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`px-6 py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
-                    loading
-                      ? "opacity-50 cursor-not-allowed transform-none"
-                      : "hover:bg-green-700 hover:scale-105"
+                  className={`px-6 py-3 bg-green-600 text-white rounded-xl font-semibold ${
+                    loading ? "opacity-50" : "hover:bg-green-700"
                   }`}
                 >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Creando...
-                    </div>
-                  ) : (
-                    "Crear Empresa"
-                  )}
+                  {loading ? "Creando..." : "Crear Empresa"}
                 </button>
               )}
-
               {modoEdicion && (
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
-                    loading
-                      ? "opacity-50 cursor-not-allowed transform-none"
-                      : "hover:bg-blue-700 hover:scale-105"
+                  className={`px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold ${
+                    loading ? "opacity-50" : "hover:bg-blue-700"
                   }`}
                 >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Guardando...
-                    </div>
-                  ) : (
-                    "Guardar Cambios"
-                  )}
+                  {loading ? "Guardando..." : "Guardar Cambios"}
                 </button>
               )}
             </div>

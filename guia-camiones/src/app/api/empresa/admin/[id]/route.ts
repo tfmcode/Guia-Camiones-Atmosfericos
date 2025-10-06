@@ -1,3 +1,4 @@
+// src/app/api/empresa/admin/[id]/route.ts - COMPLETO Y CORREGIDO
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth";
 import pool from "@/lib/db";
@@ -8,6 +9,51 @@ const noCacheHeaders = {
   Pragma: "no-cache",
   Expires: "0",
 };
+
+// ✅ Función de geocodificación
+async function geocodeAddress(
+  direccion: string,
+  localidad?: string,
+  provincia?: string
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const addressParts = [direccion];
+    if (localidad) addressParts.push(localidad);
+    if (provincia) addressParts.push(provincia);
+    addressParts.push("Argentina");
+    const fullAddress = addressParts.join(", ");
+
+    console.log("🌎 Geocodificando dirección:", fullAddress);
+
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      console.warn("⚠️ No hay API key de Google Maps configurada");
+      return null;
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+      fullAddress
+    )}&key=${apiKey}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === "OK" && data.results?.[0]) {
+      const location = data.results[0].geometry.location;
+      console.log("✅ Geocodificación exitosa:", location);
+      return {
+        lat: location.lat,
+        lng: location.lng,
+      };
+    }
+
+    console.warn("⚠️ No se pudo geocodificar la dirección:", data.status);
+    return null;
+  } catch (error) {
+    console.error("❌ Error en geocodificación:", error);
+    return null;
+  }
+}
 
 export async function PUT(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
@@ -33,7 +79,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // ✅ NUEVO: Obtener empresa actual para comparar cambios
+    // Obtener empresa actual
     const current = await pool.query(
       "SELECT id, nombre, slug, direccion, provincia, localidad, lat, lng FROM empresa WHERE id = $1",
       [Number(id)]
@@ -63,7 +109,7 @@ export async function PUT(req: NextRequest) {
     }
     updateData.slug = nuevoSlug;
 
-    // ✅ NUEVO: Limpiar coordenadas si cambió dirección, provincia o localidad
+    // ✅ CORREGIDO: Re-geocodificar si cambió la ubicación
     const direccionCambio =
       (updateData.direccion &&
         updateData.direccion !== empresaActual.direccion) ||
@@ -73,11 +119,59 @@ export async function PUT(req: NextRequest) {
         updateData.localidad !== empresaActual.localidad);
 
     if (direccionCambio) {
-      console.log(
-        "🗺️  Ubicación cambió, limpiando coordenadas para re-geocodificar"
+      console.log("🗺️  Ubicación cambió, re-geocodificando...");
+
+      const coords = await geocodeAddress(
+        updateData.direccion as string,
+        updateData.localidad as string | undefined,
+        updateData.provincia as string | undefined
       );
-      updateData.lat = null;
-      updateData.lng = null;
+
+      if (coords) {
+        updateData.lat = coords.lat;
+        updateData.lng = coords.lng;
+        console.log(
+          `✅ Re-geocodificación exitosa: ${coords.lat}, ${coords.lng}`
+        );
+      } else {
+        // Si falla la geocodificación, limpiar coordenadas
+        updateData.lat = null;
+        updateData.lng = null;
+        console.log("⚠️ Re-geocodificación falló, coordenadas limpiadas");
+      }
+    }
+
+    // ✅ NUEVO: Si no tiene coordenadas pero tiene dirección, intentar geocodificar
+    if (
+      !empresaActual.lat &&
+      !empresaActual.lng &&
+      updateData.direccion &&
+      !direccionCambio
+    ) {
+      console.log("🆕 Empresa sin coordenadas, intentando geocodificar...");
+
+      const coords = await geocodeAddress(
+        updateData.direccion as string,
+        (updateData.localidad || empresaActual.localidad) as string | undefined,
+        (updateData.provincia || empresaActual.provincia) as string | undefined
+      );
+
+      if (coords) {
+        updateData.lat = coords.lat;
+        updateData.lng = coords.lng;
+        console.log(
+          `✅ Primera geocodificación exitosa: ${coords.lat}, ${coords.lng}`
+        );
+      }
+    }
+
+    // ✅ NUEVO: Si vienen lat/lng del frontend (OptimizedAddressSearch), usarlas
+    if (rest.lat !== undefined && rest.lng !== undefined) {
+      updateData.lat = rest.lat;
+      updateData.lng = rest.lng;
+      console.log(
+        `📍 Usando coordenadas del frontend: ${rest.lat}, ${rest.lng}`
+      );
     }
 
     const fieldsToUpdate = [
@@ -94,7 +188,7 @@ export async function PUT(req: NextRequest) {
       "usuario_id",
       "slug",
       "lat",
-      "lng", // ✅ Agregado lat/lng
+      "lng",
     ];
 
     const setClauses: string[] = [];
