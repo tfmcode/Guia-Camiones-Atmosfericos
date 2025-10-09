@@ -1,4 +1,3 @@
-// src/app/admin/empresas/page.tsx - VERSIÓN COMPONENTIZADA
 "use client";
 
 import { useEffect, useState, ChangeEvent } from "react";
@@ -13,7 +12,6 @@ import type { Empresa, EmpresaInput } from "@/types/empresa";
 import axios from "axios";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
 import { Building2, Plus, MapPin, Phone, AlertCircle } from "lucide-react";
-import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
 type EmpresaWithIndex = Empresa & Record<string, unknown>;
 
@@ -25,12 +23,6 @@ export default function EmpresasAdminPage() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [empresaIdEditar, setEmpresaIdEditar] = useState<number | null>(null);
-  const [provincias, setProvincias] = useState<
-    { id: string; nombre: string }[]
-  >([]);
-  const [localidades, setLocalidades] = useState<
-    { id: string; nombre: string }[]
-  >([]);
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState("");
@@ -70,17 +62,8 @@ export default function EmpresasAdminPage() {
     const cargarDatos = async () => {
       try {
         fetchEmpresas();
-        const [provinciasRes, usuariosRes] = await Promise.all([
-          fetch(
-            "https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre"
-          ),
-          fetch("/api/usuarios?rol=EMPRESA"),
-        ]);
-        const [provinciasData, usuariosData] = await Promise.all([
-          provinciasRes.json(),
-          usuariosRes.json(),
-        ]);
-        setProvincias(provinciasData.provincias);
+        const usuariosRes = await fetch("/api/usuarios?rol=EMPRESA");
+        const usuariosData = await usuariosRes.json();
         setUsuariosEmpresa(usuariosData);
       } catch (err) {
         console.error("Error al cargar datos iniciales:", err);
@@ -88,32 +71,6 @@ export default function EmpresasAdminPage() {
     };
     cargarDatos();
   }, []);
-
-  useEffect(() => {
-    const cargarLocalidades = async () => {
-      if (!form.provincia) {
-        setLocalidades([]);
-        return;
-      }
-      try {
-        if (esCaba(form.provincia)) {
-          setLocalidades(getBarriosFormateados());
-          return;
-        }
-        const response = await fetch(
-          `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
-            form.provincia
-          )}&campos=id,nombre&max=1000`
-        );
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        setLocalidades(data.municipios || []);
-      } catch {
-        setLocalidades(esCaba(form.provincia) ? getBarriosFormateados() : []);
-      }
-    };
-    cargarLocalidades();
-  }, [form.provincia]);
 
   const fetchEmpresas = async () => {
     setTableLoading(true);
@@ -193,6 +150,13 @@ export default function EmpresasAdminPage() {
   };
 
   const abrirEditar = (empresa: EmpresaWithIndex) => {
+    console.log("📂 Abriendo edición de empresa:", {
+      id: empresa.id,
+      nombre: empresa.nombre,
+      habilitado: empresa.habilitado,
+      destacado: empresa.destacado,
+    });
+
     setForm({
       nombre: empresa.nombre,
       email: empresa.email || "",
@@ -245,12 +209,28 @@ export default function EmpresasAdminPage() {
       setError("El nombre y teléfono son obligatorios.");
       return;
     }
+
+    // ✅ LOG DE DEBUGGING
+    console.log("📤 [FRONTEND] Enviando datos al backend:", {
+      empresaId: empresaIdEditar,
+      nombre: form.nombre,
+      email: form.email,
+      habilitado: form.habilitado,
+      destacado: form.destacado,
+      telefono: form.telefono,
+    });
+
     setLoading(true);
     try {
       if (modoEdicion && empresaIdEditar !== null) {
-        await axios.put(`/api/empresa/admin/${empresaIdEditar}`, form);
+        const response = await axios.put(
+          `/api/empresa/admin/${empresaIdEditar}`,
+          form
+        );
+        console.log("✅ [FRONTEND] Respuesta del servidor:", response.data);
       } else {
         const response = await axios.post("/api/empresa/admin", form);
+        console.log("✅ [FRONTEND] Empresa creada:", response.data);
         if (
           response.data &&
           typeof response.data === "object" &&
@@ -264,6 +244,7 @@ export default function EmpresasAdminPage() {
       if (modoEdicion) setModalAbierto(false);
       setError("");
     } catch (err: unknown) {
+      console.error("❌ [FRONTEND] Error al guardar:", err);
       alert(
         err &&
           typeof err === "object" &&
@@ -276,8 +257,10 @@ export default function EmpresasAdminPage() {
           "message" in err.response.data &&
           typeof err.response.data.message === "string"
           ? err.response.data.message
-          : "Error al eliminar empresa."
+          : "Error al guardar empresa."
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -566,28 +549,22 @@ export default function EmpresasAdminPage() {
               rows={3}
             />
 
-            {/* Componente Ubicación */}
             <UbicacionFormSection
               direccion={form.direccion}
               provincia={form.provincia}
               localidad={form.localidad}
               lat={form.lat}
               lng={form.lng}
-              provincias={provincias}
-              localidades={localidades}
-              onDireccionChange={handleChange}
-              onProvinciaChange={(provincia) =>
-                setForm({ ...form, provincia, localidad: "" })
-              }
-              onLocalidadChange={(localidad) => setForm({ ...form, localidad })}
-              onLocationSelect={(coords) =>
+              onLocationSelect={(coords) => {
                 setForm({
                   ...form,
                   direccion: coords.address,
+                  provincia: coords.provincia,
+                  localidad: coords.localidad,
                   lat: coords.lat,
                   lng: coords.lng,
-                })
-              }
+                });
+              }}
             />
 
             {/* Usuario asignado */}
@@ -621,7 +598,7 @@ export default function EmpresasAdminPage() {
               onChange={(ids) => setForm({ ...form, servicios: ids })}
             />
 
-            {/* Componente Imágenes */}
+            {/* Imágenes */}
             <ImagenesFormSection
               modoEdicion={modoEdicion}
               empresaId={empresaIdEditar}
@@ -635,9 +612,13 @@ export default function EmpresasAdminPage() {
                 <input
                   type="checkbox"
                   checked={form.destacado}
-                  onChange={(e) =>
-                    setForm({ ...form, destacado: e.target.checked })
-                  }
+                  onChange={(e) => {
+                    console.log(
+                      "🔄 Checkbox destacado cambiado a:",
+                      e.target.checked
+                    );
+                    setForm({ ...form, destacado: e.target.checked });
+                  }}
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded"
                 />
                 <div>
@@ -653,9 +634,13 @@ export default function EmpresasAdminPage() {
                 <input
                   type="checkbox"
                   checked={form.habilitado}
-                  onChange={(e) =>
-                    setForm({ ...form, habilitado: e.target.checked })
-                  }
+                  onChange={(e) => {
+                    console.log(
+                      "🔄 Checkbox habilitado cambiado a:",
+                      e.target.checked
+                    );
+                    setForm({ ...form, habilitado: e.target.checked });
+                  }}
                   className="w-5 h-5 text-green-600 border-gray-300 rounded"
                 />
                 <div>

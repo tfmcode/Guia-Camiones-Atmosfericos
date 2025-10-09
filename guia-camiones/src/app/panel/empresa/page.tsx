@@ -1,3 +1,4 @@
+// src/app/panel/empresa/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,9 +18,9 @@ import {
   Eye,
   AlertCircle,
   CheckCircle,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
-import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
 interface EmpresaResponse {
   empresa: {
@@ -50,7 +51,6 @@ interface ApiResponse {
 export default function PanelEmpresa() {
   const { refreshEmpresa } = useAuth();
 
-  // ✅ STATE ACTUALIZADO con lat y lng
   const [form, setForm] = useState<
     EmpresaInput & {
       servicios: number[];
@@ -78,18 +78,12 @@ export default function PanelEmpresa() {
     lng: null,
   });
 
-  const [provincias, setProvincias] = useState<
-    { id: string; nombre: string }[]
-  >([]);
-  const [localidades, setLocalidades] = useState<
-    { id: string; nombre: string }[]
-  >([]);
+  // ✅ ELIMINADO: Estados de provincias y localidades
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ✅ ACTUALIZADO: Cargar datos incluyendo lat/lng
   const fetchEmpresaData = async () => {
     try {
       console.log("🔄 Cargando datos de empresa...");
@@ -139,13 +133,7 @@ export default function PanelEmpresa() {
       setLoading(true);
       try {
         await fetchEmpresaData();
-
-        const provinciasRes = await fetch(
-          "https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre"
-        );
-        const provinciasData = await provinciasRes.json();
-        setProvincias(provinciasData.provincias);
-
+        // ✅ ELIMINADO: Carga de provincias desde API de georef
         console.log("✅ Datos iniciales cargados correctamente");
       } catch (error) {
         console.error("❌ Error al cargar datos iniciales:", error);
@@ -158,54 +146,7 @@ export default function PanelEmpresa() {
     loadInitialData();
   }, []);
 
-  useEffect(() => {
-    const cargarLocalidades = async () => {
-      if (!form.provincia) {
-        setLocalidades([]);
-        return;
-      }
-
-      try {
-        if (esCaba(form.provincia)) {
-          console.log("🏙️ Cargando barrios de CABA...");
-          const barrios = getBarriosFormateados();
-          setLocalidades(barrios);
-          console.log(`✅ ${barrios.length} barrios de CABA cargados`);
-          return;
-        }
-
-        console.log(`🌎 Cargando localidades para: ${form.provincia}`);
-
-        const response = await fetch(
-          `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
-            form.provincia
-          )}&campos=id,nombre&max=1000`
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        const municipios = data.municipios || [];
-
-        setLocalidades(municipios);
-        console.log(
-          `✅ ${municipios.length} localidades cargadas para ${form.provincia}`
-        );
-      } catch (error) {
-        console.error("❌ Error al cargar localidades:", error);
-        setLocalidades([]);
-
-        if (esCaba(form.provincia)) {
-          console.log("🔄 Usando fallback para barrios de CABA...");
-          setLocalidades(getBarriosFormateados());
-        }
-      }
-    };
-
-    cargarLocalidades();
-  }, [form.provincia]);
+  // ✅ ELIMINADO: useEffect para cargar localidades cuando cambia provincia
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -228,6 +169,8 @@ export default function PanelEmpresa() {
     try {
       console.log("🚀 Enviando actualización de empresa:", {
         nombre: form.nombre,
+        provincia: form.provincia,
+        localidad: form.localidad,
         geocodificada: !!(form.lat && form.lng),
       });
 
@@ -269,10 +212,7 @@ export default function PanelEmpresa() {
           lng: empresaActualizada.lng ?? null,
         }));
 
-        console.log("📝 Form actualizado:", {
-          slug: empresaActualizada.slug,
-          geocodificada: !!(empresaActualizada.lat && empresaActualizada.lng),
-        });
+        console.log("📝 Form actualizado con provincia y localidad");
       }
 
       setSuccess("¡Datos actualizados correctamente!");
@@ -491,7 +431,7 @@ export default function PanelEmpresa() {
           </div>
         </div>
 
-        {/* ✅ SECCIÓN ACTUALIZADA: Ubicación con buscador inteligente */}
+        {/* ✅ SECCIÓN SIMPLIFICADA: Solo buscador de Google Maps */}
         <div className={sectionStyles}>
           <div className="flex items-center gap-3 mb-6">
             <MapPin size={20} className="text-red-500" />
@@ -499,17 +439,22 @@ export default function PanelEmpresa() {
           </div>
 
           <div className="space-y-4">
-            {/* ✅ Buscador de direcciones con geocodificación */}
+            {/* ✅ Buscador de direcciones */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Buscar y seleccionar dirección con Google Maps
+                Buscar dirección con Google Maps
               </label>
               <OptimizedAddressSearch
                 onLocationSelect={(coords) => {
-                  console.log("📍 Dirección seleccionada:", coords);
+                  console.log(
+                    "📍 Dirección seleccionada con datos completos:",
+                    coords
+                  );
                   setForm({
                     ...form,
                     direccion: coords.address,
+                    provincia: coords.provincia, // ✅ NUEVO
+                    localidad: coords.localidad, // ✅ NUEVO
                     lat: coords.lat,
                     lng: coords.lng,
                   });
@@ -517,69 +462,53 @@ export default function PanelEmpresa() {
                 placeholder="Buscar dirección exacta (ej: Av. Corrientes 1234, CABA)"
               />
               <p className="text-xs text-gray-500 mt-1">
-                💡 Al seleccionar una dirección, las coordenadas se guardan
-                automáticamente
+                💡 Selecciona una dirección de la lista. La provincia, localidad
+                y coordenadas se completarán automáticamente.
               </p>
             </div>
 
-            {/* Campo manual de dirección */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                O escribir dirección manualmente
-              </label>
-              <input
-                name="direccion"
-                value={form.direccion}
-                onChange={handleChange}
-                className={inputStyles}
-                placeholder="Av. Corrientes 1234"
-              />
-            </div>
+            {/* ✅ INFORMACIÓN READ-ONLY: Mostrar datos extraídos */}
+            {form.direccion && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <Info size={16} className="text-blue-500" />
+                  Datos extraídos de Google Maps
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Provincia
-                </label>
-                <select
-                  name="provincia"
-                  value={form.provincia}
-                  onChange={handleChange}
-                  className={inputStyles}
-                >
-                  <option value="">Seleccioná una provincia</option>
-                  {provincias.map((prov) => (
-                    <option key={prov.id} value={prov.nombre}>
-                      {prov.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600 block mb-1">
+                      📍 Dirección:
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {form.direccion}
+                    </span>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
-                </label>
-                <select
-                  name="localidad"
-                  value={form.localidad}
-                  onChange={handleChange}
-                  className={inputStyles}
-                  disabled={!form.provincia}
-                >
-                  <option value="">
-                    {esCaba(form.provincia || "")
-                      ? "Seleccioná un barrio"
-                      : "Seleccioná una localidad"}
-                  </option>
-                  {localidades.map((loc) => (
-                    <option key={loc.id} value={loc.nombre}>
-                      {loc.nombre}
-                    </option>
-                  ))}
-                </select>
+                  <div>
+                    <span className="text-gray-600 block mb-1">
+                      🗺️ Provincia:
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {form.provincia || (
+                        <span className="text-red-500">No detectada</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-gray-600 block mb-1">
+                      🏙️ Localidad:
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {form.localidad || (
+                        <span className="text-red-500">No detectada</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ✅ Indicador de geocodificación */}
             {form.lat && form.lng && (
@@ -603,7 +532,7 @@ export default function PanelEmpresa() {
               </div>
             )}
 
-            {!form.lat && !form.lng && (
+            {!form.lat && !form.lng && form.direccion && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -614,8 +543,8 @@ export default function PanelEmpresa() {
                       ⚠️ Dirección sin geocodificar
                     </p>
                     <p className="text-xs text-amber-700">
-                      Usa el buscador de Google Maps arriba para que tu empresa
-                      aparezca en el mapa de proximidad
+                      Usa el buscador de Google Maps para obtener las
+                      coordenadas exactas
                     </p>
                   </div>
                 </div>

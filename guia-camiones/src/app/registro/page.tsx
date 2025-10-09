@@ -1,90 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { esCaba, getBarriosFormateados } from "@/constants/barrios";
 
 export default function RegistroEmpresa() {
   const [form, setForm] = useState({
     nombre: "",
     email: "",
     telefono: "",
-    provincia: "",
-    localidad: "",
     password: "",
   });
-  const [provincias, setProvincias] = useState<
-    { id: string; nombre: string }[]
-  >([]);
-  const [localidades, setLocalidades] = useState<
-    { id: string; nombre: string }[]
-  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
 
-  useEffect(() => {
-    fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre")
-      .then((res) => res.json())
-      .then((data) => setProvincias(data.provincias));
-  }, []);
-
-  useEffect(() => {
-    const cargarLocalidades = async () => {
-      if (!form.provincia) {
-        setLocalidades([]);
-        return;
-      }
-
-      try {
-        // ✅ Detectar si es CABA
-        if (esCaba(form.provincia)) {
-          console.log("🏙️ Cargando barrios de CABA...");
-          const barrios = getBarriosFormateados();
-          setLocalidades(barrios);
-          console.log(`✅ ${barrios.length} barrios de CABA cargados`);
-          return;
-        }
-
-        // ✅ Para el resto de provincias usar la API normal
-        console.log(`🌎 Cargando municipios de ${form.provincia}...`);
-
-        const response = await fetch(
-          `https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(
-            form.provincia
-          )}&campos=id,nombre&max=1000`
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        const municipios = data.municipios || [];
-
-        setLocalidades(municipios);
-        console.log(
-          `✅ ${municipios.length} municipios cargados para ${form.provincia}`
-        );
-      } catch (error) {
-        console.error("❌ Error cargando localidades:", error);
-        setLocalidades([]);
-
-        // Fallback para CABA
-        if (esCaba(form.provincia)) {
-          console.log("🔄 Usando fallback para barrios de CABA...");
-          setLocalidades(getBarriosFormateados());
-        }
-      }
-    };
-
-    cargarLocalidades();
-  }, [form.provincia]);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -93,17 +24,13 @@ export default function RegistroEmpresa() {
     setLoading(true);
     setError("");
 
-    const payload = { ...form };
-
     try {
-      await axios.post("/api/registro", payload);
-      alert("Empresa registrada exitosamente");
+      await axios.post("/api/registro", form);
+      alert("Empresa registrada exitosamente. Ahora podés iniciar sesión.");
       setForm({
         nombre: "",
         email: "",
         telefono: "",
-        provincia: "",
-        localidad: "",
         password: "",
       });
       router.push("/login");
@@ -182,51 +109,6 @@ export default function RegistroEmpresa() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
-              Provincia
-            </label>
-            <select
-              name="provincia"
-              value={form.provincia}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2"
-            >
-              <option value="">Seleccioná una provincia</option>
-              {provincias.map((prov) => (
-                <option key={prov.id} value={prov.nombre}>
-                  {prov.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
-              {esCaba(form.provincia || "") ? "Barrio" : "Localidad"}
-            </label>
-            <select
-              name="localidad"
-              value={form.localidad}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2"
-            >
-              <option value="">
-                {esCaba(form.provincia || "")
-                  ? "Seleccioná un barrio"
-                  : "Seleccioná una localidad"}
-              </option>
-              {localidades.map((loc) => (
-                <option key={loc.id} value={loc.nombre}>
-                  {loc.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
         <div>
           <label className="block text-sm font-semibold mb-1 text-[#1c2e39]">
             Contraseña
@@ -240,6 +122,13 @@ export default function RegistroEmpresa() {
             autoComplete="new-password"
             className="w-full border border-gray-300 rounded-lg px-4 py-2"
           />
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            ℹ️ Después de registrarte, podrás completar informacion adicional sobre
+            tu empresa desde el panel de control.
+          </p>
         </div>
 
         <button

@@ -1,8 +1,12 @@
-// src/app/api/empresa/admin/[id]/route.ts - COMPLETO Y CORREGIDO
 import { NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@/lib/auth";
 import pool from "@/lib/db";
 import { generarSlug } from "@/lib/slugify";
+import {
+  enviarEmail,
+  templateEmpresaHabilitada,
+  templateEmpresaDeshabilitada,
+} from "@/lib/email";
 
 const noCacheHeaders = {
   "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -10,7 +14,6 @@ const noCacheHeaders = {
   Expires: "0",
 };
 
-// ✅ Función de geocodificación
 async function geocodeAddress(
   direccion: string,
   localidad?: string,
@@ -72,6 +75,13 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { servicios, imagenes, ...rest } = body as Record<string, unknown>;
 
+    console.log("🔧 [BACKEND] Datos recibidos en PUT:", {
+      id: Number(id),
+      habilitado: rest.habilitado,
+      nombre: rest.nombre,
+      email: rest.email,
+    });
+
     if (!rest.nombre || !rest.telefono || !rest.direccion) {
       return NextResponse.json(
         { message: "Nombre, teléfono y dirección son obligatorios" },
@@ -79,9 +89,9 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Obtener empresa actual
+    // ✅ Obtener estado actual de la empresa
     const current = await pool.query(
-      "SELECT id, nombre, slug, direccion, provincia, localidad, lat, lng FROM empresa WHERE id = $1",
+      "SELECT id, nombre, slug, email, direccion, provincia, localidad, lat, lng, habilitado FROM empresa WHERE id = $1",
       [Number(id)]
     );
     const empresaActual = current.rows[0];
@@ -92,6 +102,19 @@ export async function PUT(req: NextRequest) {
         { status: 404, headers: noCacheHeaders }
       );
     }
+
+    // ✅ DETECTAR cambio en el campo `habilitado`
+    const cambioHabilitado =
+      rest.habilitado !== undefined &&
+      Boolean(rest.habilitado) !== Boolean(empresaActual.habilitado);
+    const nuevoEstadoHabilitado = Boolean(rest.habilitado);
+
+    console.log("🔍 [BACKEND] Detección de cambio en habilitado:", {
+      empresaActual_habilitado: empresaActual.habilitado,
+      nuevo_habilitado: rest.habilitado,
+      cambioHabilitado,
+      nuevoEstadoHabilitado,
+    });
 
     const updateData: Record<string, unknown> = {};
     Object.entries(rest).forEach(([k, v]) => {
@@ -109,7 +132,7 @@ export async function PUT(req: NextRequest) {
     }
     updateData.slug = nuevoSlug;
 
-    // ✅ CORREGIDO: Re-geocodificar si cambió la ubicación
+    // Re-geocodificar si cambió la ubicación
     const direccionCambio =
       (updateData.direccion &&
         updateData.direccion !== empresaActual.direccion) ||
@@ -134,14 +157,13 @@ export async function PUT(req: NextRequest) {
           `✅ Re-geocodificación exitosa: ${coords.lat}, ${coords.lng}`
         );
       } else {
-        // Si falla la geocodificación, limpiar coordenadas
         updateData.lat = null;
         updateData.lng = null;
         console.log("⚠️ Re-geocodificación falló, coordenadas limpiadas");
       }
     }
 
-    // ✅ NUEVO: Si no tiene coordenadas pero tiene dirección, intentar geocodificar
+    // Si no tiene coordenadas pero tiene dirección, intentar geocodificar
     if (
       !empresaActual.lat &&
       !empresaActual.lng &&
@@ -165,7 +187,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // ✅ NUEVO: Si vienen lat/lng del frontend (OptimizedAddressSearch), usarlas
+    // Si vienen lat/lng del frontend, usarlas
     if (rest.lat !== undefined && rest.lng !== undefined) {
       updateData.lat = rest.lat;
       updateData.lng = rest.lng;
@@ -225,11 +247,21 @@ export async function PUT(req: NextRequest) {
       UPDATE empresa
       SET ${setClauses.join(", ")}
       WHERE id = $${idx}
-      RETURNING id
+      RETURNING id, nombre, email, slug
     `;
     values.push(Number(id));
 
-    await pool.query(updateQuery, values);
+    const updateResult = await pool.query(updateQuery, values);
+    const empresaActualizada = updateResult.rows[0];
+
+    console.log("📊 [BACKEND] Empresa actualizada:", {
+      id: empresaActualizada.id,
+      nombre: empresaActualizada.nombre,
+      email: empresaActualizada.email,
+      slug: empresaActualizada.slug,
+      cambioHabilitado,
+      nuevoEstadoHabilitado,
+    });
 
     // Actualizar servicios
     if (servicios !== undefined) {
@@ -256,6 +288,102 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    // 📧 ENVIAR EMAIL SI CAMBIÓ EL ESTADO `habilitado`
+    if (cambioHabilitado && empresaActualizada.email) {
+      const emailEmpresa = empresaActualizada.email;
+      const nombreEmpresa = empresaActualizada.nombre;
+      const slugEmpresa = empresaActualizada.slug;
+
+      console.log(
+        `📧 [BACKEND] Cambio detectado en habilitado. Enviando email...`
+      );
+      console.log(`   → Email destino: ${emailEmpresa}`);
+      console.log(`   → Nombre empresa: ${nombreEmpresa}`);
+      console.log(
+        `   → Nuevo estado: ${
+          nuevoEstadoHabilitado ? "HABILITADA" : "DESHABILITADA"
+        }`
+      );
+
+      try {
+        if (nuevoEstadoHabilitado === true) {
+          // ✅ Empresa HABILITADA
+          console.log(`📧 [BACKEND] Preparando email de habilitación...`);
+          const { html, text } = templateEmpresaHabilitada(
+            nombreEmpresa,
+            emailEmpresa,
+            slugEmpresa
+          );
+
+          console.log(
+            `📧 [BACKEND] Enviando email de habilitación a: ${emailEmpresa}`
+          );
+          const resultadoEmail = await enviarEmail({
+            to: emailEmpresa,
+            subject: "¡Tu Empresa fue Habilitada! - Guía Atmosféricos",
+            html,
+            text,
+          });
+
+          if (resultadoEmail.success) {
+            console.log(
+              `✅ [BACKEND] Email de habilitación enviado exitosamente a ${emailEmpresa}`
+            );
+          } else {
+            console.error(
+              `❌ [BACKEND] Error al enviar email de habilitación:`,
+              resultadoEmail.error
+            );
+          }
+        } else if (nuevoEstadoHabilitado === false) {
+          // ⚠️ Empresa DESHABILITADA
+          console.log(`📧 [BACKEND] Preparando email de deshabilitación...`);
+          const { html, text } = templateEmpresaDeshabilitada(
+            nombreEmpresa,
+            emailEmpresa
+          );
+
+          console.log(
+            `📧 [BACKEND] Enviando email de deshabilitación a: ${emailEmpresa}`
+          );
+          const resultadoEmail = await enviarEmail({
+            to: emailEmpresa,
+            subject: "Estado de tu Empresa - Guía Atmosféricos",
+            html,
+            text,
+          });
+
+          if (resultadoEmail.success) {
+            console.log(
+              `✅ [BACKEND] Email de deshabilitación enviado exitosamente a ${emailEmpresa}`
+            );
+          } else {
+            console.error(
+              `❌ [BACKEND] Error al enviar email de deshabilitación:`,
+              resultadoEmail.error
+            );
+          }
+        }
+      } catch (emailError) {
+        console.error(
+          `❌ [BACKEND] Error crítico al enviar email de estado:`,
+          emailError
+        );
+        // No revertir la actualización si falla el email
+      }
+    } else {
+      if (cambioHabilitado && !empresaActualizada.email) {
+        console.log(
+          `⚠️ [BACKEND] Cambió habilitado pero la empresa no tiene email registrado`
+        );
+      }
+      if (!cambioHabilitado) {
+        console.log(
+          `ℹ️ [BACKEND] No hubo cambio en el campo habilitado, no se envía email`
+        );
+      }
+    }
+
     // Devolver empresa completa
     const full = await pool.query(
       `
@@ -275,7 +403,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(full.rows[0], { headers: noCacheHeaders });
   } catch (error) {
-    console.error("❌ Error al actualizar empresa:", error);
+    console.error("❌ [BACKEND] Error al actualizar empresa:", error);
     return NextResponse.json(
       { message: "Error al actualizar empresa" },
       { status: 500, headers: noCacheHeaders }

@@ -6,13 +6,13 @@ import EmpresaCard from "@/components/empresas/EmpresasCard";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { Empresa } from "@/types/empresa";
 import { ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
-import { esCaba, getBarriosFormateados } from "@/constants/barrios";
-
+/* import { esCaba, getBarriosFormateados } from "@/constants/barrios";
+ */
 export default function EmpresasContent() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [provincias, setProvincias] = useState<string[]>([]);
-  const [localidades, setLocalidades] = useState<string[]>([]);
-  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>(
+/*   const [localidades, setLocalidades] = useState<string[]>([]);
+ */  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>(
     []
   );
   const [showFilters, setShowFilters] = useState(false);
@@ -85,7 +85,7 @@ export default function EmpresasContent() {
         console.error("Error al cargar provincias:", err)
       );
   }, []);
-
+/* 
   useEffect(() => {
     const cargarLocalidades = async () => {
       if (!filtro.provincia) {
@@ -140,7 +140,7 @@ export default function EmpresasContent() {
 
     cargarLocalidades();
   }, [filtro.provincia]);
-
+ */
   useEffect(() => {
     fetch("/api/servicios")
       .then((res) => res.json())
@@ -438,7 +438,7 @@ export default function EmpresasContent() {
                 ))}
               </select>
             </div>
-
+{/* 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {esCaba(filtro.provincia || "") ? "Barrio" : "Localidad"}
@@ -464,7 +464,7 @@ export default function EmpresasContent() {
                 ))}
               </select>
             </div>
-
+ */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Servicio

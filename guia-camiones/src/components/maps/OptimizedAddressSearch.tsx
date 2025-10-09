@@ -14,10 +14,63 @@ interface AddressSearchProps {
     lat: number;
     lng: number;
     address: string;
+    provincia: string;
+    localidad: string;
   }) => void;
   placeholder?: string;
   className?: string;
 }
+
+// ✅ BARRIOS DE CABA para detección automática
+const BARRIOS_CABA = [
+  "Palermo",
+  "Recoleta",
+  "Belgrano",
+  "Caballito",
+  "Villa Urquiza",
+  "Villa Crespo",
+  "Almagro",
+  "Flores",
+  "San Telmo",
+  "La Boca",
+  "Puerto Madero",
+  "Retiro",
+  "Constitución",
+  "San Nicolás",
+  "Montserrat",
+  "Balvanera",
+  "San Cristóbal",
+  "Boedo",
+  "Parque Patricios",
+  "Nueva Pompeya",
+  "Barracas",
+  "Liniers",
+  "Mataderos",
+  "Parque Chacabuco",
+  "Villa Soldati",
+  "Villa Riachuelo",
+  "Villa Lugano",
+  "Versalles",
+  "Villa Luro",
+  "Vélez Sarsfield",
+  "Floresta",
+  "Monte Castro",
+  "Villa Real",
+  "Villa Devoto",
+  "Villa del Parque",
+  "Villa Santa Rita",
+  "Coghlan",
+  "Saavedra",
+  "Villa Pueyrredón",
+  "Villa General Mitre",
+  "Agronomía",
+  "Parque Chas",
+  "Paternal",
+  "Chacarita",
+  "Villa Ortúzar",
+  "Colegiales",
+  "Núñez",
+];
 
 export default function OptimizedAddressSearch({
   onLocationSelect,
@@ -45,6 +98,104 @@ export default function OptimizedAddressSearch({
   const searchCache = useRef<
     Map<string, google.maps.places.AutocompletePrediction[]>
   >(new Map());
+
+  // ✅ FUNCIÓN DE NORMALIZACIÓN: Detectar si Buenos Aires es CABA o Provincia
+  const normalizarUbicacion = (
+    provincia: string,
+    localidad: string
+  ): { provincia: string; localidad: string } => {
+    // Si NO es "Buenos Aires", devolver tal cual
+    if (provincia !== "Buenos Aires") {
+      return { provincia, localidad };
+    }
+
+    // Si es "Buenos Aires", detectar si es CABA o Provincia
+
+    // 1. Si la localidad empieza con "Comuna" → es CABA
+    if (localidad.startsWith("Comuna")) {
+      return {
+        provincia: "Ciudad Autónoma de Buenos Aires",
+        localidad: localidad,
+      };
+    }
+
+    // 2. Si la localidad es un barrio conocido de CABA → es CABA
+    if (BARRIOS_CABA.includes(localidad)) {
+      return {
+        provincia: "Ciudad Autónoma de Buenos Aires",
+        localidad: localidad,
+      };
+    }
+
+    // 3. Si dice "Ciudad Autónoma de Buenos Aires" en la localidad → es CABA
+    if (
+      localidad.includes("Ciudad Autónoma") ||
+      localidad.includes("CABA") ||
+      localidad.includes("Capital Federal")
+    ) {
+      return {
+        provincia: "Ciudad Autónoma de Buenos Aires",
+        localidad: localidad
+          .replace(/Ciudad Autónoma de Buenos Aires,?\s*/gi, "")
+          .trim(),
+      };
+    }
+
+    // 4. Si no es ninguna de las anteriores → es Provincia de Buenos Aires
+    return {
+      provincia: "Buenos Aires",
+      localidad: localidad,
+    };
+  };
+
+  // ✅ FUNCIÓN: Extraer provincia y localidad de address_components
+  const extractLocationData = (
+    addressComponents: google.maps.GeocoderAddressComponent[]
+  ): { provincia: string; localidad: string } => {
+    let provincia = "";
+    let localidad = "";
+
+    for (const component of addressComponents) {
+      const types = component.types;
+
+      // Provincia - administrative_area_level_1
+      if (types.includes("administrative_area_level_1")) {
+        provincia = component.long_name;
+      }
+
+      // Localidad - priorizar locality, luego administrative_area_level_2
+      if (types.includes("locality")) {
+        localidad = component.long_name;
+      } else if (types.includes("administrative_area_level_2") && !localidad) {
+        localidad = component.long_name;
+      }
+
+      // Para CABA, buscar el barrio
+      if (
+        types.includes("sublocality") ||
+        types.includes("sublocality_level_1")
+      ) {
+        if (
+          provincia === "Ciudad Autónoma de Buenos Aires" ||
+          provincia === "Buenos Aires"
+        ) {
+          localidad = component.long_name;
+        }
+      }
+    }
+
+    console.log("📍 Datos extraídos de Google Maps (RAW):", {
+      provincia,
+      localidad,
+    });
+
+    // ✅ NORMALIZAR para que coincida con georef.gob.ar
+    const normalizado = normalizarUbicacion(provincia, localidad);
+
+    console.log("🔄 Datos normalizados para georef:", normalizado);
+
+    return normalizado;
+  };
 
   // Verificar si Google Maps está disponible
   useEffect(() => {
@@ -105,7 +256,7 @@ export default function OptimizedAddressSearch({
     }
   }, [isGoogleReady]);
 
-  // Obtener detalles de un lugar
+  // Obtener detalles de un lugar CON address_components
   const getPlaceDetails = useCallback(
     (placeId: string, description: string) => {
       if (!placesService.current || !isGoogleReady) {
@@ -118,7 +269,7 @@ export default function OptimizedAddressSearch({
 
       const request: google.maps.places.PlaceDetailsRequest = {
         placeId,
-        fields: ["geometry", "formatted_address"],
+        fields: ["geometry", "formatted_address", "address_components"],
       };
 
       if (sessionToken.current) {
@@ -130,12 +281,20 @@ export default function OptimizedAddressSearch({
 
         if (
           status === google.maps.places.PlacesServiceStatus.OK &&
-          place?.geometry?.location
+          place?.geometry?.location &&
+          place?.address_components
         ) {
+          // ✅ Extraer provincia y localidad NORMALIZADOS
+          const { provincia, localidad } = extractLocationData(
+            place.address_components
+          );
+
           const coords = {
             lat: place.geometry.location.lat(),
             lng: place.geometry.location.lng(),
             address: place.formatted_address || description,
+            provincia,
+            localidad,
           };
 
           sessionToken.current =
@@ -183,7 +342,7 @@ export default function OptimizedAddressSearch({
         componentRestrictions: { country: "ar" },
         types: ["geocode", "establishment"],
         locationBias: {
-          center: new google.maps.LatLng(-34.603722, -58.381592), // Buenos Aires
+          center: new google.maps.LatLng(-34.603722, -58.381592),
           radius: 50000,
         },
       };
@@ -239,7 +398,6 @@ export default function OptimizedAddressSearch({
     [isGoogleReady]
   );
 
-  // Manejar cambios en el input con debounce
   const handleInputChange = useCallback(
     (value: string) => {
       setQuery(value);
@@ -265,7 +423,7 @@ export default function OptimizedAddressSearch({
     [searchPlaces]
   );
 
-  // Geolocalización del usuario
+  // Geolocalización con extracción de provincia/localidad
   const handleGeolocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError("Tu navegador no soporta geolocalización");
@@ -292,16 +450,35 @@ export default function OptimizedAddressSearch({
           const response = await geocoder.geocode({ location: coords });
 
           if (response.results[0]) {
-            const address = response.results[0].formatted_address;
-            onLocationSelect({ ...coords, address });
+            const result = response.results[0];
+            const address = result.formatted_address;
+
+            // ✅ Extraer provincia y localidad NORMALIZADOS
+            const { provincia, localidad } = extractLocationData(
+              result.address_components
+            );
+
+            onLocationSelect({ ...coords, address, provincia, localidad });
             setQuery(address);
-            console.log("📍 Ubicación actual obtenida");
+            console.log(
+              "📍 Ubicación actual obtenida con provincia y localidad normalizadas"
+            );
           } else {
-            onLocationSelect({ ...coords, address: "Mi ubicación" });
+            onLocationSelect({
+              ...coords,
+              address: "Mi ubicación",
+              provincia: "",
+              localidad: "",
+            });
           }
         } catch (error) {
           console.error("Error en geocodificación inversa:", error);
-          onLocationSelect({ ...coords, address: "Mi ubicación" });
+          onLocationSelect({
+            ...coords,
+            address: "Mi ubicación",
+            provincia: "",
+            localidad: "",
+          });
         }
 
         setGeolocating(false);
@@ -334,7 +511,6 @@ export default function OptimizedAddressSearch({
     );
   }, [onLocationSelect, isGoogleReady]);
 
-  // Navegación con teclado
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!showSuggestions || suggestions.length === 0) return;
@@ -366,7 +542,6 @@ export default function OptimizedAddressSearch({
     [showSuggestions, suggestions, selectedIndex, getPlaceDetails]
   );
 
-  // Limpiar al desmontar
   useEffect(() => {
     return () => {
       if (debounceTimer.current) {
@@ -375,7 +550,6 @@ export default function OptimizedAddressSearch({
     };
   }, []);
 
-  // Mostrar pantalla de carga mientras Google Maps se inicializa
   if (!isGoogleReady) {
     return (
       <div className={`relative ${className}`}>

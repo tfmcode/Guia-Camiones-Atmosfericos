@@ -1,9 +1,7 @@
-// src/components/admin/UbicacionFormSection.tsx
 "use client";
 
-import { MapPin } from "lucide-react";
+import { MapPin, Info } from "lucide-react";
 import OptimizedAddressSearch from "@/components/maps/OptimizedAddressSearch";
-import { esCaba } from "@/constants/barrios";
 
 interface UbicacionFormSectionProps {
   direccion: string;
@@ -11,15 +9,12 @@ interface UbicacionFormSectionProps {
   localidad: string | undefined;
   lat: number | null | undefined;
   lng: number | null | undefined;
-  provincias: { id: string; nombre: string }[];
-  localidades: { id: string; nombre: string }[];
-  onDireccionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onProvinciaChange: (provincia: string) => void;
-  onLocalidadChange: (localidad: string) => void;
   onLocationSelect: (coords: {
     address: string;
     lat: number;
     lng: number;
+    provincia: string;
+    localidad: string;
   }) => void;
 }
 
@@ -29,11 +24,6 @@ export default function UbicacionFormSection({
   localidad,
   lat,
   lng,
-  provincias,
-  localidades,
-  onDireccionChange,
-  onProvinciaChange,
-  onLocalidadChange,
   onLocationSelect,
 }: UbicacionFormSectionProps) {
   return (
@@ -47,87 +37,63 @@ export default function UbicacionFormSection({
             Ubicación
           </label>
           <p className="text-sm text-gray-600">
-            Geocodifica la dirección para que aparezca en el mapa
+            Busca la dirección completa para obtener coordenadas y ubicación
+            automáticamente
           </p>
         </div>
       </div>
 
-      {/* Buscador de direcciones */}
+      {/* ✅ ÚNICO INPUT: Buscador de Google Maps */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Buscar y seleccionar dirección con Google Maps
+          Buscar dirección con Google Maps
         </label>
         <OptimizedAddressSearch
           onLocationSelect={onLocationSelect}
           placeholder="Buscar dirección exacta (ej: Av. Corrientes 1234, CABA)"
         />
         <p className="text-xs text-gray-500 mt-1">
-          💡 Al seleccionar una dirección, las coordenadas se guardan
-          automáticamente
+          💡 Selecciona una dirección de la lista. La provincia, localidad y
+          coordenadas se completarán automáticamente.
         </p>
       </div>
 
-      {/* Campo manual de dirección */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          O escribir dirección manualmente
-        </label>
-        <input
-          name="direccion"
-          value={direccion}
-          onChange={onDireccionChange}
-          className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Av. Principal 1234"
-        />
-      </div>
+      {/* ✅ INFORMACIÓN READ-ONLY: Mostrar datos extraídos */}
+      {direccion && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <Info size={16} className="text-blue-500" />
+            Datos extraídos de Google Maps
+          </div>
 
-      {/* Provincia y Localidad */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Provincia
-          </label>
-          <select
-            name="provincia"
-            value={provincia}
-            onChange={(e) => onProvinciaChange(e.target.value)}
-            className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Seleccione una provincia</option>
-            {provincias.map((prov) => (
-              <option key={prov.id} value={prov.nombre}>
-                {prov.nombre}
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600 block mb-1">📍 Dirección:</span>
+              <span className="font-medium text-gray-900">{direccion}</span>
+            </div>
+
+            <div>
+              <span className="text-gray-600 block mb-1">🗺️ Provincia:</span>
+              <span className="font-medium text-gray-900">
+                {provincia || (
+                  <span className="text-red-500">No detectada</span>
+                )}
+              </span>
+            </div>
+
+            <div>
+              <span className="text-gray-600 block mb-1">🏙️ Localidad:</span>
+              <span className="font-medium text-gray-900">
+                {localidad || (
+                  <span className="text-red-500">No detectada</span>
+                )}
+              </span>
+            </div>
+          </div>
         </div>
+      )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {esCaba(provincia || "") ? "Barrio" : "Localidad"}
-          </label>
-          <select
-            name="localidad"
-            value={localidad}
-            onChange={(e) => onLocalidadChange(e.target.value)}
-            className="block w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!provincia}
-          >
-            <option value="">
-              {esCaba(provincia || "")
-                ? "Seleccione un barrio"
-                : "Seleccione una localidad"}
-            </option>
-            {localidades.map((loc) => (
-              <option key={loc.id} value={loc.nombre}>
-                {loc.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Indicador de geocodificación */}
+      {/* ✅ Indicador de geocodificación */}
       {lat && lng && typeof lat === "number" && typeof lng === "number" && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -149,7 +115,7 @@ export default function UbicacionFormSection({
         </div>
       )}
 
-      {!lat && !lng && (
+      {!lat && !lng && direccion && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -160,8 +126,8 @@ export default function UbicacionFormSection({
                 ⚠️ Dirección sin geocodificar
               </p>
               <p className="text-xs text-amber-700">
-                Usa el buscador de Google Maps arriba para que la empresa
-                aparezca en el mapa de proximidad
+                Usa el buscador de Google Maps para obtener las coordenadas
+                exactas
               </p>
             </div>
           </div>

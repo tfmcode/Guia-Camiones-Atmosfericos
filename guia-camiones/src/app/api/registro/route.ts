@@ -1,7 +1,13 @@
+// src/app/api/registro/route.ts
 import { NextResponse } from "next/server";
 import { generarSlug } from "@/lib/slugify";
 import bcrypt from "bcryptjs";
 import pool from "@/lib/db";
+import {
+  enviarEmail,
+  templateRegistroPendiente,
+  templateNotificacionAdminRegistro,
+} from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -45,9 +51,10 @@ export async function POST(req: Request) {
       ]);
       const nuevoUsuarioId = usuarioResult.rows[0].id;
 
+      // ✅ Insertar empresa con habilitado = false por defecto
       const insertEmpresaQuery = `
-        INSERT INTO empresa (nombre, email, telefono, provincia, localidad, slug, usuario_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO empresa (nombre, email, telefono, provincia, localidad, slug, usuario_id, habilitado)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, false)
       `;
       await client.query(insertEmpresaQuery, [
         nombre,
@@ -60,6 +67,70 @@ export async function POST(req: Request) {
       ]);
 
       await client.query("COMMIT");
+
+      console.log(`✅ Empresa registrada: ${nombre} (${email})`);
+
+      // 📧 ENVIAR EMAILS
+      try {
+        // 1️⃣ Email a la empresa registrada
+        const { html: htmlEmpresa, text: textEmpresa } =
+          templateRegistroPendiente(nombre, email);
+        const emailEmpresa = enviarEmail({
+          to: email,
+          subject: "Registro Recibido - Guía Atmosféricos",
+          html: htmlEmpresa,
+          text: textEmpresa,
+        });
+
+        // 2️⃣ Email al administrador
+        const emailAdmin =
+          process.env.SMTP_FROM ||
+          process.env.SMTP_USER ||
+          "administracion@guia-atmosfericos.com";
+        const { html: htmlAdmin, text: textAdmin } =
+          templateNotificacionAdminRegistro(
+            nombre,
+            email,
+            telefono,
+            provincia,
+            localidad
+          );
+        const emailAdministrador = enviarEmail({
+          to: emailAdmin,
+          subject: `🔔 Nueva Empresa Registrada: ${nombre}`,
+          html: htmlAdmin,
+          text: textAdmin,
+        });
+
+        // Enviar ambos emails en paralelo
+        const [resultadoEmpresa, resultadoAdmin] = await Promise.all([
+          emailEmpresa,
+          emailAdministrador,
+        ]);
+
+        if (resultadoEmpresa.success) {
+          console.log(`📧 Email de registro enviado a empresa: ${email}`);
+        } else {
+          console.error(
+            `❌ Error al enviar email a empresa:`,
+            resultadoEmpresa.error
+          );
+        }
+
+        if (resultadoAdmin.success) {
+          console.log(
+            `📧 Email de notificación enviado a admin: ${emailAdmin}`
+          );
+        } else {
+          console.error(
+            `❌ Error al enviar email a admin:`,
+            resultadoAdmin.error
+          );
+        }
+      } catch (emailError) {
+        console.error(`❌ Error crítico al enviar emails:`, emailError);
+        // No fallar el registro si fallan los emails
+      }
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -68,7 +139,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { mensaje: "Empresa registrada con éxito" },
+      {
+        mensaje:
+          "Empresa registrada con éxito. Revisá tu email para más información.",
+      },
       { status: 201 }
     );
   } catch (error: unknown) {
