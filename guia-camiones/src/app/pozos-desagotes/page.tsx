@@ -1,4 +1,4 @@
-// src/app/pozos-desagotes/page.tsx - Botón debajo del título
+// src/app/pozos-desagotes/page.tsx - SIN filtro de keywords
 import { Suspense } from "react";
 import { getEmpresas } from "@/lib/api/empresaService";
 import type { EmpresaWithCoords, Empresa } from "@/types/empresa";
@@ -9,152 +9,13 @@ import OptimizedPozosMapViewClient from "@/components/maps/OptimizedPozosMapView
 export const dynamic = "force-dynamic";
 export const revalidate = 900; // 15 minutos
 
-function filterEmpresasForPozos(
-  empresas: EmpresaWithCoords[]
-): EmpresaWithCoords[] {
-  console.log(
-    `🔍 Iniciando filtro de pozos. Total empresas: ${empresas.length}`
-  );
-
-  const pozosKeywords = [
-    "pozo",
-    "pozos",
-    "desagote",
-    "desagotes",
-    "septico",
-    "septica",
-    "ciego",
-    "ciegos",
-    "fosa",
-    "fosas",
-    "succion",
-    "vaciado",
-    "atmosferico",
-    "atmosfericos",
-    "camion",
-    "camiones",
-    "limpieza",
-    "desobstruccion",
-    "saneamiento",
-    "cloacal",
-    "residual",
-    "bomba",
-    "bombeo",
-    "aspiracion",
-    "cañeria",
-    "cañerias",
-    "drenaje",
-    "alcantarilla",
-    "sumidero",
-    "tanque",
-    "cisterna",
-    "deposito",
-    "efluente",
-    "lodo",
-    "barro",
-    "hidrojet",
-    "destapacion",
-    "mantenimiento",
-    "emergencia",
-    "24hs",
-    "industrial",
-    "domiciliario",
-    "residencial",
-    "comercial",
-  ];
-
-  const nombresRelevantes = [
-    "ambiental",
-    "ambientales",
-    "servicios",
-    "transporte",
-    "ecologico",
-    "residuo",
-    "residuos",
-    "tratamiento",
-    "gestion",
-    "integral",
-    "sanitario",
-    "limpio",
-    "limpia",
-    "verde",
-    "express",
-    "rapido",
-  ];
-
-  const empresasFiltradas = empresas.filter((empresa) => {
-    let score = 0;
-
-    const nombreLower = empresa.nombre.toLowerCase();
-    const nombreMatches = pozosKeywords.filter((keyword) =>
-      nombreLower.includes(keyword)
-    ).length;
-    score += nombreMatches * 3;
-
-    if (empresa.servicios && empresa.servicios.length > 0) {
-      const serviciosText = empresa.servicios
-        .map((s) => s.nombre.toLowerCase())
-        .join(" ");
-      const serviciosMatches = pozosKeywords.filter((keyword) =>
-        serviciosText.includes(keyword)
-      ).length;
-      score += serviciosMatches * 3;
-    }
-
-    if (empresa.corrientes_de_residuos) {
-      const descripcionLower = empresa.corrientes_de_residuos.toLowerCase();
-      const descripcionMatches = pozosKeywords.filter((keyword) =>
-        descripcionLower.includes(keyword)
-      ).length;
-      score += descripcionMatches * 2;
-    }
-
-    if (empresa.direccion) {
-      const direccionLower = empresa.direccion.toLowerCase();
-      const direccionMatches = pozosKeywords.filter((keyword) =>
-        direccionLower.includes(keyword)
-      ).length;
-      score += direccionMatches * 1;
-    }
-
-    const nombreRelevante = nombresRelevantes.some((keyword) =>
-      nombreLower.includes(keyword)
-    );
-    if (nombreRelevante) score += 1;
-
-    if (score > 0) {
-      console.log(`✅ ${empresa.nombre}: score ${score}`);
-    }
-
-    return score >= 1;
-  });
-
-  empresasFiltradas.sort((a, b) => {
-    if (a.destacado && !b.destacado) return -1;
-    if (!a.destacado && b.destacado) return 1;
-
-    const aRelevance =
-      (a.servicios?.length || 0) + (a.corrientes_de_residuos ? 1 : 0);
-    const bRelevance =
-      (b.servicios?.length || 0) + (b.corrientes_de_residuos ? 1 : 0);
-
-    return bRelevance - aRelevance;
-  });
-
-  console.log(
-    `✅ Filtro completado: ${empresasFiltradas.length} empresas encontradas`
-  );
-
-  return empresasFiltradas;
-}
-
 function MapLoadingState() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200 p-4">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Pozos de Desagotes - Búsqueda por Proximidad
+            Empresas por Proximidad - Búsqueda en Mapa
           </h1>
           <div className="animate-pulse">
             <div className="h-12 bg-gray-200 rounded mb-4"></div>
@@ -184,7 +45,7 @@ interface ApiResponse {
 
 async function PozosDesagotesContent() {
   try {
-    console.log("🚀 Cargando empresas para pozos de desagote...");
+    console.log("🚀 Cargando todas las empresas con ubicación...");
     const todasLasEmpresas = await getEmpresas();
 
     let empresasArray: EmpresaWithCoords[] = [];
@@ -205,18 +66,29 @@ async function PozosDesagotesContent() {
 
     console.log(`📊 Empresas cargadas: ${empresasArray.length} total`);
 
-    const empresasFiltradas = filterEmpresasForPozos(empresasArray);
-
-    const conCoordenadas = empresasFiltradas.filter(
-      (e) => e.lat && e.lng
-    ).length;
-    const sinCoordenadas = empresasFiltradas.length - conCoordenadas;
-
-    console.log(
-      `🗺️ Geocodificación: ${conCoordenadas} completas, ${sinCoordenadas} pendientes`
+    // ✅ FILTRO SIMPLE: Solo empresas con coordenadas válidas
+    const empresasConUbicacion = empresasArray.filter(
+      (empresa) =>
+        empresa.lat != null &&
+        empresa.lng != null &&
+        typeof empresa.lat === "number" &&
+        typeof empresa.lng === "number" &&
+        !isNaN(empresa.lat) &&
+        !isNaN(empresa.lng)
     );
 
-    if (empresasFiltradas.length === 0) {
+    console.log(
+      `🗺️ Empresas con ubicación: ${empresasConUbicacion.length} de ${empresasArray.length}`
+    );
+
+    // ✅ Ordenar por destacadas primero
+    empresasConUbicacion.sort((a, b) => {
+      if (a.destacado && !b.destacado) return -1;
+      if (!a.destacado && b.destacado) return 1;
+      return 0;
+    });
+
+    if (empresasConUbicacion.length === 0) {
       return (
         <div className="min-h-screen bg-gray-50">
           <div className="max-w-4xl mx-auto px-4 py-16">
@@ -225,21 +97,18 @@ async function PozosDesagotesContent() {
                 <Truck size={32} className="text-blue-600" />
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                Pozos de Desagotes Ciegos
+                Mapa de Empresas
               </h1>
-              <p className="text-lg text-gray-600">
-                Búsqueda especializada por proximidad
-              </p>
+              <p className="text-lg text-gray-600">Búsqueda por proximidad</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-lg p-8 text-center">
               <AlertCircle size={48} className="text-amber-500 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                No se encontraron empresas especializadas
+                No hay empresas con ubicación disponible
               </h2>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                Actualmente no hay empresas especializadas en pozos de desagote
-                registradas.
+                Actualmente no hay empresas con coordenadas geocodificadas.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -248,7 +117,7 @@ async function PozosDesagotesContent() {
                   className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   <MapPin size={20} />
-                  Ver todas las empresas
+                  Ver listado completo
                 </Link>
               </div>
             </div>
@@ -264,16 +133,19 @@ async function PozosDesagotesContent() {
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <Truck size={20} className="text-green-600" />
+                <MapPin size={20} className="text-green-600" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                Desagotes de Pozos Ciegos
+                  Búsqueda por Proximidad
                 </h1>
+                <p className="text-xs text-gray-600">
+                  {empresasConUbicacion.length} empresas con ubicación
+                </p>
               </div>
             </div>
 
-            {/* ✅ Botón de actualización - Posición mejorada */}
+            {/* ✅ Botón de actualización */}
             <form action="/pozos-desagotes">
               <button
                 type="submit"
@@ -294,8 +166,8 @@ async function PozosDesagotesContent() {
           </div>
         </div>
 
-        {/* Mapa con empresas */}
-        <OptimizedPozosMapViewClient empresas={empresasFiltradas} />
+        {/* Mapa con TODAS las empresas que tienen coordenadas */}
+        <OptimizedPozosMapViewClient empresas={empresasConUbicacion} />
       </div>
     );
   } catch (error) {
@@ -326,7 +198,7 @@ async function PozosDesagotesContent() {
               href="/empresas"
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium inline-block"
             >
-              Ver guía general
+              Ver listado completo
             </Link>
           </div>
         </div>
@@ -344,8 +216,7 @@ export default function PozosDesagotesPage() {
 }
 
 export const metadata = {
-  title:
-    "Pozos de Desagotes Ciegos - Búsqueda por Proximidad | Guía Atmosféricos",
+  title: "Mapa de Empresas - Búsqueda por Proximidad | Guía Atmosféricos",
   description:
-    "Encuentra empresas especializadas cerca de tu ubicación con actualización automática cada 15 minutos.",
+    "Encuentra empresas cerca de tu ubicación con actualización automática cada 15 minutos.",
 };
