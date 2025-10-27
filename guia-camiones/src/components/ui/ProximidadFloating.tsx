@@ -6,9 +6,17 @@ import { usePathname } from "next/navigation";
 import { MapPin } from "lucide-react";
 
 const ProximidadFloating: React.FC = () => {
+  const noPathname = [
+    "/pozos-desagotes",
+    "/panel/empresa",
+    "/panel/admin",
+    "/panel/admin/empresas",
+    "/panel/admin/usuarios",
+  ];
+
   const pathname = usePathname();
 
-  if (pathname === "/pozos-desagotes") {
+  if (noPathname.includes(pathname)) {
     return null;
   }
   return (
