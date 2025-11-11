@@ -7,14 +7,27 @@ const WhatsappFloating: React.FC = () => {
   const phone = "5491155646135";
   const message = "Hola! Estoy viendo su web y quiero hacer una consulta.";
 
+  const href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+  const handleClick = () => {
+    if (typeof window !== "undefined" && window.dataLayer) {
+      window.dataLayer.push({
+        event: "whatsapp_click",
+        link_url: href,
+        location: "floating_button",
+      });
+    }
+  };
+
   return (
     <a
-      href={`https://wa.me/${phone}?text=${encodeURIComponent(message)}`}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       title="Chatear por WhatsApp"
       aria-label="Abrir conversación por WhatsApp"
       className="fixed bottom-4 right-4 z-50"
+      onClick={handleClick}
     >
       <Image
         src="/WhatsApp.svg"

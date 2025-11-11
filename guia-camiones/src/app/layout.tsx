@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* PWA Metadata */}
+        {/* PWA */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -36,62 +36,58 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Guía C.A." />
 
-        {/* ========================================
-            🗺️ GOOGLE MAPS
-            ======================================== */}
+        {/* Google Maps */}
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,geometry&language=es&region=AR`}
           strategy="beforeInteractive"
         />
 
         {/* ========================================
-            📊 GOOGLE TAG MANAGER (GTM)
-            ======================================== */}
-        <Script id="gtm-head" strategy="afterInteractive">
+            Google Tag Manager (única instalación)
+           ======================================== */}
+        {/* Inicializo dataLayer y Consent Mode por si GTM lo necesita */}
+        <Script id="gtm-datalayer" strategy="afterInteractive">
           {`
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-NLHP8RM7');
+            window.dataLayer = window.dataLayer || [];
+            // Opcional: consent default (ajústalo si usas CMP)
+            window.dataLayer.push({
+              event: 'default_consent',
+              ad_user_data: 'granted',
+              ad_personalization: 'granted',
+              ad_storage: 'granted',
+              analytics_storage: 'granted',
+            });
           `}
         </Script>
 
-        {/* ========================================
-            🎯 GOOGLE ADS (Conversión)
-            ID: AW-307646210
-            ======================================== */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=AW-307646210"
-          strategy="afterInteractive"
-        />
-
-        <Script id="google-ads-init" strategy="afterInteractive">
+        {/* Contenedor GTM */}
+        <Script id="gtm-script" strategy="afterInteractive">
           {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'AW-307646210');
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            })(window,document,'script','dataLayer','GTM-NLHP8RM7');
           `}
         </Script>
       </head>
 
       <body className="bg-white text-gray-900">
-        {/* GTM noscript fallback */}
+        {/* Fallback GTM */}
         <noscript>
           <iframe
             src="https://www.googletagmanager.com/ns.html?id=GTM-NLHP8RM7"
             height="0"
             width="0"
             style={{ display: "none", visibility: "hidden" }}
-          ></iframe>
+          />
         </noscript>
 
-        {/* Floating components */}
+        {/* Botones flotantes */}
         <WhatsappFloating />
         <ProximidadFloating />
 
-        {/* Main app */}
+        {/* App */}
         <AuthProvider>
           <LayoutContent>{children}</LayoutContent>
         </AuthProvider>
